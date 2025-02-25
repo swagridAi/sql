@@ -28,18 +28,39 @@ class SQLParser:
         Raises:
             SQLSyntaxError: When SQL contains syntax errors
         """
-        # Find line number for error messages
-        def get_line_number(position: int) -> int:
-            """Get line number for a position in the SQL string."""
-            return sql[:position].count('\n') + 1
-        
         # Check for empty SQL
         if not sql or not sql.strip():
             raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
         
+        # Split into statements for statement-level validation
+        try:
+            statements = self.split_statements(sql, skip_validation=True)
+        except Exception:
+            # Fall back to whole script validation if splitting fails
+            statements = [sql]
+        
+        # Validate each statement separately
+        for stmt in statements:
+            self._validate_statement(stmt)
+    
+    def _validate_statement(self, stmt: str) -> None:
+        """
+        Validates a single SQL statement.
+        
+        Args:
+            stmt: The SQL statement to validate
+            
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+        """
+        # Find line number for error messages
+        def get_line_number(position: int) -> int:
+            """Get line number for a position in the SQL string."""
+            return stmt[:position].count('\n') + 1
+        
         # Check for basic syntax errors with more precise error messages
-        if "FROM WHERE" in sql.upper():
-            match = re.search(r'FROM\s+WHERE', sql, re.IGNORECASE)
+        if "FROM WHERE" in stmt.upper():
+            match = re.search(r'FROM\s+WHERE', stmt, re.IGNORECASE)
             if match:
                 position = match.start()
                 raise SQLSyntaxError(
@@ -49,10 +70,10 @@ class SQLParser:
                 )
         
         # Check for unbalanced parentheses with position tracking
-        if sql.count('(') != sql.count(')'):
+        if stmt.count('(') != stmt.count(')'):
             # Find the position where parentheses become unbalanced
             balance = 0
-            for i, char in enumerate(sql):
+            for i, char in enumerate(stmt):
                 if char == '(':
                     balance += 1
                 elif char == ')':
@@ -68,13 +89,13 @@ class SQLParser:
             if balance > 0:
                 raise SQLSyntaxError(
                     f"Unbalanced parentheses: missing {balance} closing parentheses",
-                    position=len(sql),
-                    line=get_line_number(len(sql))
+                    position=len(stmt),
+                    line=get_line_number(len(stmt))
                 )
         
         # Check for unbalanced quotes with detailed error messages
         try:
-            self._check_balanced_quotes(sql)
+            self._check_balanced_quotes(stmt)
         except SQLSyntaxError as e:
             # Re-raise with line number information
             position = getattr(e, 'position', None)
@@ -89,8 +110,8 @@ class SQLParser:
         
         # Check for JOIN without ON clause
         join_without_on = re.search(r'\bJOIN\b(?:(?!\bON\b).)*?(?:\bWHERE\b|\bGROUP\s+BY\b|\bORDER\s+BY\b|$)', 
-                                   sql, re.IGNORECASE | re.DOTALL)
-        if join_without_on and not re.search(r'\bCROSS\s+JOIN\b', sql, re.IGNORECASE):
+                                   stmt, re.IGNORECASE | re.DOTALL)
+        if join_without_on and not re.search(r'\bCROSS\s+JOIN\b', stmt, re.IGNORECASE):
             # Exclude CROSS JOIN which doesn't need ON
             match_text = join_without_on.group(0)
             if not re.search(r'\bUSING\b', match_text, re.IGNORECASE):  # Also exclude JOIN USING
@@ -101,8 +122,8 @@ class SQLParser:
                     line=get_line_number(position)
                 )
         
-        # Check for invalid GROUP BY syntax
-        group_where = re.search(r'\bGROUP\s+BY\b.*?\bWHERE\b', sql, re.IGNORECASE | re.DOTALL)
+        # Check for invalid GROUP BY syntax - within a single statement
+        group_where = re.search(r'\bGROUP\s+BY\b.*?\bWHERE\b', stmt, re.IGNORECASE | re.DOTALL)
         if group_where:
             position = group_where.start()
             raise SQLSyntaxError(
@@ -159,12 +180,13 @@ class SQLParser:
         if in_double_quote:
             raise SQLSyntaxError("Unbalanced double quotes", position=len(sql) - 1)
 
-    def split_statements(self, sql: str) -> List[str]:
+    def split_statements(self, sql: str, skip_validation: bool = False) -> List[str]:
         """
         Split SQL into individual statements while handling comments, strings, and nesting.
         
         Args:
             sql: SQL code potentially containing multiple statements
+            skip_validation: If True, skip initial SQL validation
             
         Returns:
             List of individual SQL statements
@@ -173,12 +195,13 @@ class SQLParser:
             ParserError: When the parser encounters an unrecoverable error
             SQLSyntaxError: When SQL contains syntax errors
         """
-        # Validate the overall SQL first
-        try:
-            self.validate_sql(sql)
-        except SQLSyntaxError as e:
-            self.logger.error(f"SQL validation error: {e}")
-            raise
+        # Validate the overall SQL first (unless skipped)
+        if not skip_validation:
+            try:
+                self.validate_sql(sql)
+            except SQLSyntaxError as e:
+                self.logger.error(f"SQL validation error: {e}")
+                raise
             
         statements = []
         current = []
@@ -195,6 +218,7 @@ class SQLParser:
 
         try:
             for i, char in enumerate(sql):
+                prev_state = state.copy()
                 # Update state before processing current character
                 self._update_state(char, state, i)
 
@@ -319,6 +343,7 @@ class SQLParser:
             if char == '-' and state['prev_char'] == '-':
                 state['in_comment'] = True
                 state['comment_type'] = 'line'
+                state['prev_char'] = None  # Reset prev_char to avoid capturing the dash
             elif char == '/' and state['prev_char'] == '*':
                 # This is actually an end of block comment marker 
                 # that wasn't caught in the first part, ignore it

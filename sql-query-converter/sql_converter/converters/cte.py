@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict, Optional, Any, Match, Pattern
 
 from sql_converter.converters.base import BaseConverter
 from sql_converter.parsers.sql_parser import SQLParser
-from sql_converter.exceptions import ConverterError, ValidationError, SQLSyntaxError
+from sql_converter.exceptions import ConverterError, ValidationError, SQLSyntaxError, ConfigError
 
 
 class CTEConverter(BaseConverter):
