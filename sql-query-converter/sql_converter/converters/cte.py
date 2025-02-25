@@ -1,13 +1,43 @@
-# sql_converter/converters/cte.py
 import re
 import logging
-from typing import List, Tuple, Dict, Optional, Any
+from typing import List, Tuple, Dict, Optional, Any, Match, Pattern
+
 from sql_converter.converters.base import BaseConverter
 from sql_converter.parsers.sql_parser import SQLParser
+from sql_converter.exceptions import ConverterError, ValidationError, SQLSyntaxError
 
 
 class CTEConverter(BaseConverter):
+    """Converts SQL queries with temporary tables to Common Table Expressions (CTEs)."""
+    
+    # Precompile regex patterns for performance
+    _SELECT_INTO_PATTERN = re.compile(
+        r'^\s*SELECT\s+(?P<select_clause>.+?)\s+INTO\s+(?P<table>\S+)\s+(?P<remainder>FROM.*)',
+        re.IGNORECASE | re.DOTALL
+    )
+    
+    _CREATE_TEMP_AS_PATTERN1 = re.compile(
+        r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)\s+AS\s*(?P<query>SELECT.*)',
+        re.IGNORECASE | re.DOTALL
+    )
+    
+    _CREATE_TEMP_AS_PATTERN2 = re.compile(
+        r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)\s+AS\s*\((?P<query>SELECT.*?)(?:\)|;|\s*$)',
+        re.IGNORECASE | re.DOTALL
+    )
+    
+    _CREATE_TEMP_PATTERN = re.compile(
+        r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)',
+        re.IGNORECASE
+    )
+    
     def __init__(self, config: Dict[str, Any] = None):
+        """
+        Initialize CTEConverter with configuration.
+        
+        Args:
+            config: Configuration dictionary for converter settings
+        """
         super().__init__(config)
         self.logger = logging.getLogger(self.__class__.__name__)
         
@@ -17,7 +47,12 @@ class CTEConverter(BaseConverter):
         
         # Initialize components
         self.parser = SQLParser()
-        self.temp_table_regex = self._process_patterns(temp_table_patterns)
+        
+        # Compile temp table regex from patterns
+        try:
+            self.temp_table_regex = self._process_patterns(temp_table_patterns)
+        except Exception as e:
+            raise ConfigError(f"Failed to process temp table patterns: {str(e)}")
         
         # Conversion state
         self.cte_definitions: List[Tuple[str, str]] = []
@@ -26,9 +61,23 @@ class CTEConverter(BaseConverter):
         self.current_temp_table: Optional[str] = None
 
     def _process_patterns(self, patterns: List[str]) -> str:
-        """Convert config patterns to regex pattern"""
+        """
+        Convert configuration patterns to regex pattern.
+        
+        Args:
+            patterns: List of pattern strings
+            
+        Returns:
+            Compiled regex pattern string
+            
+        Raises:
+            ConfigError: When pattern processing fails
+        """
+        if not patterns:
+            raise ConfigError("No temp table patterns provided")
+            
         regex_fragments = []
-        for pattern in patterns:
+        for i, pattern in enumerate(patterns):
             try:
                 # Convert simplified pattern to regex
                 processed = (
@@ -38,18 +87,32 @@ class CTEConverter(BaseConverter):
                 )
                 regex_fragments.append(processed)
             except Exception as e:
-                self.logger.warning(f"Invalid pattern '{pattern}': {str(e)}")
+                self.logger.warning(f"Invalid pattern '{pattern}' at index {i}: {str(e)}")
         
-        return '|'.join(regex_fragments) or r'\#.*'
+        if not regex_fragments:
+            self.logger.warning("No valid patterns found, using default pattern '#.*'")
+            return r'\#.*'
+            
+        return '|'.join(regex_fragments)
 
     def convert(self, sql: str) -> str:
-        """Main conversion entry point with multi-pass handling for nested temps"""
+        """
+        Convert SQL with temp tables to use CTEs.
+        
+        Args:
+            sql: SQL query text to convert
+            
+        Returns:
+            Converted SQL using CTEs
+            
+        Raises:
+            ConverterError: For general conversion errors
+            ValidationError: For validation errors
+            SQLSyntaxError: For SQL syntax errors
+        """
         self._reset_state()
         
         try:
-            # Initial validation of complete SQL
-            self.parser.validate_sql(sql)
-            
             # Split into statements
             statements = self.parser.split_statements(sql)
             
@@ -63,50 +126,94 @@ class CTEConverter(BaseConverter):
             # Build the final query with properly ordered CTEs
             return self._build_final_query()
         
-        except ValueError as e:
-            self.logger.error(f"SQL conversion failed: {str(e)}")
+        except SQLSyntaxError as e:
+            # Preserve SQL syntax errors
+            self.logger.error(f"SQL syntax error during conversion: {e}")
             raise
+        except ValidationError as e:
+            # Preserve validation errors
+            self.logger.error(f"Validation error during conversion: {e}")
+            raise
+        except Exception as e:
+            # Wrap other exceptions in ConverterError
+            error_msg = f"Failed to convert SQL: {str(e)}"
+            self.logger.error(error_msg)
+            
+            # Include a snippet of the SQL in the error
+            snippet = sql[:100] + "..." if len(sql) > 100 else sql
+            raise ConverterError(error_msg, source=snippet) from e
 
-    def _reset_state(self):
-        """Reset converter state between conversions"""
+    def _reset_state(self) -> None:
+        """Reset converter state between conversions."""
         self.cte_definitions.clear()
         self.main_queries.clear()
         self.temp_table_map.clear()
         self.current_temp_table = None
 
     def _process_statement(self, stmt: str) -> None:
-        """Process a single SQL statement"""
-        # Validate the statement before processing
-        try:
-            self.parser.validate_sql(stmt)
-        except ValueError as e:
-            self.logger.error(f"Invalid SQL statement: {str(e)}")
-            raise ValueError(f"Failed to process SQL: {str(e)}")
+        """
+        Process a single SQL statement.
+        
+        Args:
+            stmt: SQL statement to process
             
-        if self._handle_temp_creation(stmt):
-            return
+        Raises:
+            ValidationError: When statement processing fails
+        """
+        try:
+            if self._handle_temp_creation(stmt):
+                return
 
-        if self.current_temp_table:
-            self._handle_temp_insert(stmt)
-        else:
-            self._add_main_query(stmt)
+            if self.current_temp_table:
+                self._handle_temp_insert(stmt)
+            else:
+                self._add_main_query(stmt)
+        except Exception as e:
+            if isinstance(e, (ValidationError, SQLSyntaxError)):
+                raise
+            raise ValidationError(f"Failed to process statement: {str(e)}", 
+                                 source=stmt[:50] + "..." if len(stmt) > 50 else stmt) from e
 
     def _handle_temp_creation(self, stmt: str) -> bool:
-        """Handle temp table creation using configured patterns"""
-        return any([
-            self._handle_select_into(stmt),
-            self._handle_create_temp_as(stmt),
-            self._handle_create_temp(stmt)
-        ])
+        """
+        Handle temp table creation using configured patterns.
+        
+        Args:
+            stmt: SQL statement to check for temp table creation
+            
+        Returns:
+            True if statement created a temp table, False otherwise
+            
+        Raises:
+            ValidationError: When temp table creation handling fails
+        """
+        try:
+            return any([
+                self._handle_select_into(stmt),
+                self._handle_create_temp_as(stmt),
+                self._handle_create_temp(stmt)
+            ])
+        except Exception as e:
+            if isinstance(e, ValidationError):
+                raise
+            raise ValidationError(f"Failed to handle temp table creation: {str(e)}", 
+                                 source=stmt[:50] + "..." if len(stmt) > 50 else stmt) from e
 
     def _handle_select_into(self, stmt: str) -> bool:
-        """Handle SELECT INTO pattern"""
-        pattern = re.compile(
-            r'^\s*SELECT\s+(?P<select_clause>.+?)\s+INTO\s+(?P<table>\S+)\s+(?P<remainder>FROM.*)',
-            re.IGNORECASE | re.DOTALL
-        )
-
-        if not (match := pattern.match(stmt)):
+        """
+        Handle SELECT INTO pattern.
+        
+        Args:
+            stmt: SQL statement to check for SELECT INTO
+            
+        Returns:
+            True if statement matched pattern, False otherwise
+            
+        Raises:
+            ValidationError: When SELECT INTO handling fails
+        """
+        match = self._SELECT_INTO_PATTERN.match(stmt)
+        if not match:
             return False
 
         try:
@@ -126,172 +233,254 @@ class CTEConverter(BaseConverter):
             return True
 
         except Exception as e:
-            self.logger.error(f"SELECT INTO conversion failed: {str(e)}")
-            return False
+            raise ValidationError(
+                f"Error handling SELECT INTO: {str(e)}",
+                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
+            ) from e
 
     def _handle_create_temp_as(self, stmt: str) -> bool:
-        """Handle CREATE TEMP TABLE AS SELECT with or without parentheses"""
-        # Pattern for: CREATE TEMP TABLE #name AS SELECT...
-        pattern1 = re.compile(
-            r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)\s+AS\s*(?P<query>SELECT.*)',
-            re.IGNORECASE | re.DOTALL
-        )
+        """
+        Handle CREATE TEMP TABLE AS SELECT with or without parentheses.
         
-        # Pattern for: CREATE TEMP TABLE #name AS (SELECT...)
-        pattern2 = re.compile(
-            r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)\s+AS\s*\((?P<query>SELECT.*?)(?:\)|;|\s*$)',
-            re.IGNORECASE | re.DOTALL
-        )
-
-        match = pattern1.match(stmt) or pattern2.match(stmt)
+        Args:
+            stmt: SQL statement to check for CREATE TEMP TABLE AS
+            
+        Returns:
+            True if statement matched pattern, False otherwise
+            
+        Raises:
+            ValidationError: When CREATE TEMP TABLE AS handling fails
+        """
+        # Try both patterns
+        match = self._CREATE_TEMP_AS_PATTERN1.match(stmt) or self._CREATE_TEMP_AS_PATTERN2.match(stmt)
         if not match:
             return False
 
-        raw_table = match.group('table')
-        if not re.search(self.temp_table_regex, raw_table):
-            return False
+        try:
+            raw_table = match.group('table')
+            if not re.search(self.temp_table_regex, raw_table):
+                return False
 
-        clean_name = raw_table.lstrip('#').replace('.', '_')
-        
-        # Clean up the query - remove trailing semicolons
-        query = match.group('query').strip()
-        if query.endswith(';'):
-            query = query[:-1]
+            clean_name = raw_table.lstrip('#').replace('.', '_')
             
-        self.cte_definitions.append((clean_name, query))
-        self.temp_table_map[raw_table] = clean_name
-        return True
-
-    def _handle_create_temp(self, stmt: str) -> bool:
-        """Handle CREATE TEMP TABLE without AS SELECT"""
-        pattern = re.compile(
-            r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)',
-            re.IGNORECASE
-        )
-
-        if not (match := pattern.match(stmt)):
-            return False
-
-        raw_table = match.group('table')
-        if not re.search(self.temp_table_regex, raw_table):
-            return False
-
-        self.current_temp_table = raw_table
-        return True
-
-    def _handle_temp_insert(self, stmt: str) -> None:
-        """Handle INSERT INTO temp table"""
-        pattern = re.compile(
-            rf'^\s*INSERT\s+INTO\s+{re.escape(self.current_temp_table)}\s+(?P<query>SELECT.*)',
-            re.IGNORECASE | re.DOTALL
-        )
-
-        if (match := pattern.match(stmt)):
-            clean_name = self.current_temp_table.lstrip('#').replace('.', '_')
-            
-            # Clean the query
+            # Clean up the query - remove trailing semicolons
             query = match.group('query').strip()
             if query.endswith(';'):
                 query = query[:-1]
                 
             self.cte_definitions.append((clean_name, query))
-            self.temp_table_map[self.current_temp_table] = clean_name
-            self.current_temp_table = None
-        else:
-            self._add_main_query(stmt)
+            self.temp_table_map[raw_table] = clean_name
+            return True
+        except Exception as e:
+            raise ValidationError(
+                f"Error handling CREATE TEMP TABLE AS: {str(e)}",
+                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
+            ) from e
 
-    def _resolve_nested_references(self):
-        """Resolve references between temp tables in CTE definitions"""
+    def _handle_create_temp(self, stmt: str) -> bool:
+        """
+        Handle CREATE TEMP TABLE without AS SELECT.
+        
+        Args:
+            stmt: SQL statement to check for CREATE TEMP TABLE
+            
+        Returns:
+            True if statement matched pattern, False otherwise
+            
+        Raises:
+            ValidationError: When CREATE TEMP TABLE handling fails
+        """
+        match = self._CREATE_TEMP_PATTERN.match(stmt)
+        if not match:
+            return False
+
+        try:
+            raw_table = match.group('table')
+            if not re.search(self.temp_table_regex, raw_table):
+                return False
+
+            self.current_temp_table = raw_table
+            return True
+        except Exception as e:
+            raise ValidationError(
+                f"Error handling CREATE TEMP TABLE: {str(e)}",
+                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
+            ) from e
+
+    def _handle_temp_insert(self, stmt: str) -> None:
+        """
+        Handle INSERT INTO temp table.
+        
+        Args:
+            stmt: SQL statement to check for INSERT INTO
+            
+        Raises:
+            ValidationError: When INSERT INTO handling fails
+        """
+        if not self.current_temp_table:
+            self._add_main_query(stmt)
+            return
+            
+        try:
+            # Create the pattern on demand with the current temp table name
+            pattern = re.compile(
+                rf'^\s*INSERT\s+INTO\s+{re.escape(self.current_temp_table)}\s+(?P<query>SELECT.*)',
+                re.IGNORECASE | re.DOTALL
+            )
+
+            match = pattern.match(stmt)
+            if match:
+                clean_name = self.current_temp_table.lstrip('#').replace('.', '_')
+                
+                # Clean the query
+                query = match.group('query').strip()
+                if query.endswith(';'):
+                    query = query[:-1]
+                    
+                self.cte_definitions.append((clean_name, query))
+                self.temp_table_map[self.current_temp_table] = clean_name
+                self.current_temp_table = None
+            else:
+                self._add_main_query(stmt)
+        except Exception as e:
+            raise ValidationError(
+                f"Error handling INSERT INTO temp table: {str(e)}",
+                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
+            ) from e
+
+    def _resolve_nested_references(self) -> None:
+        """
+        Resolve references between temp tables in CTE definitions.
+        
+        Raises:
+            ConverterError: When reference resolution fails
+        """
         # Maximum number of passes to prevent infinite loops
         max_passes = 10
         changes_made = True
         pass_count = 0
         
-        # Continue making passes until no more changes or max passes reached
-        while changes_made and pass_count < max_passes:
-            changes_made = False
-            pass_count += 1
-            
-            # Update all CTE definitions in each pass
-            updated_definitions = []
-            for name, query in self.cte_definitions:
-                original_query = query
-                processed_query = query
+        try:
+            # Continue making passes until no more changes or max passes reached
+            while changes_made and pass_count < max_passes:
+                changes_made = False
+                pass_count += 1
                 
-                # Try to replace all temp table references in this CTE definition
-                for temp, cte in self.temp_table_map.items():
-                    # Use improved pattern to match temp table names correctly
-                    if temp.startswith('#'):
-                        pattern = rf'(?<![a-zA-Z0-9_]){re.escape(temp)}(?![a-zA-Z0-9_])'
-                    else:
-                        pattern = rf'\b{re.escape(temp)}\b'
+                # Update all CTE definitions in each pass
+                updated_definitions = []
+                for name, query in self.cte_definitions:
+                    original_query = query
+                    processed_query = query
                     
-                    processed_query = re.sub(
-                        pattern, 
-                        cte, 
-                        processed_query, 
-                        flags=re.IGNORECASE
-                    )
+                    # Try to replace all temp table references in this CTE definition
+                    for temp, cte in self.temp_table_map.items():
+                        # Use improved pattern to match temp table names correctly
+                        if temp.startswith('#'):
+                            pattern = rf'(?<![a-zA-Z0-9_]){re.escape(temp)}(?![a-zA-Z0-9_])'
+                        else:
+                            pattern = rf'\b{re.escape(temp)}\b'
+                        
+                        processed_query = re.sub(
+                            pattern, 
+                            cte, 
+                            processed_query, 
+                            flags=re.IGNORECASE
+                        )
+                    
+                    # Check if we made any changes in this pass
+                    if processed_query != original_query:
+                        changes_made = True
+                        self.logger.debug(f"Resolved nested reference in CTE '{name}'")
+                    
+                    updated_definitions.append((name, processed_query))
                 
-                # Check if we made any changes in this pass
-                if processed_query != original_query:
-                    changes_made = True
-                    self.logger.debug(f"Resolved nested reference in CTE '{name}'")
+                # Update CTE definitions for next pass
+                self.cte_definitions = updated_definitions
                 
-                updated_definitions.append((name, processed_query))
-            
-            # Update CTE definitions for next pass
-            self.cte_definitions = updated_definitions
-            
-        if pass_count == max_passes and changes_made:
-            self.logger.warning("Reached maximum passes for resolving nested references")
+            if pass_count == max_passes and changes_made:
+                self.logger.warning("Reached maximum passes for resolving nested references")
+        except Exception as e:
+            raise ConverterError(f"Error resolving nested references: {str(e)}") from e
 
     def _add_main_query(self, stmt: str) -> None:
-        """Replace temp references in final queries"""
-        processed = stmt
-        for temp, cte in self.temp_table_map.items():
-            # Use improved pattern to match temp table names correctly
-            if temp.startswith('#'):
-                pattern = rf'(?<![a-zA-Z0-9_]){re.escape(temp)}(?![a-zA-Z0-9_])'
-            else:
-                pattern = rf'\b{re.escape(temp)}\b'
-                
-            processed = re.sub(
-                pattern, 
-                cte, 
-                processed, 
-                flags=re.IGNORECASE
-            )
-        self.main_queries.append(processed)
+        """
+        Replace temp references in final queries.
+        
+        Args:
+            stmt: SQL statement to process for main query
+            
+        Raises:
+            ConverterError: When processing main query fails
+        """
+        try:
+            processed = stmt
+            for temp, cte in self.temp_table_map.items():
+                # Use improved pattern to match temp table names correctly
+                if temp.startswith('#'):
+                    pattern = rf'(?<![a-zA-Z0-9_]){re.escape(temp)}(?![a-zA-Z0-9_])'
+                else:
+                    pattern = rf'\b{re.escape(temp)}\b'
+                    
+                processed = re.sub(
+                    pattern, 
+                    cte, 
+                    processed, 
+                    flags=re.IGNORECASE
+                )
+            self.main_queries.append(processed)
+        except Exception as e:
+            raise ConverterError(
+                f"Error processing main query: {str(e)}",
+                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
+            ) from e
 
     def _build_final_query(self) -> str:
-        """Construct final CTE query with proper formatting"""
-        if not self.cte_definitions:
-            return ';\n'.join(query.rstrip(';') for query in self.main_queries)
+        """
+        Construct final CTE query with proper formatting.
+        
+        Returns:
+            Final SQL with CTEs
+            
+        Raises:
+            ConverterError: When building final query fails
+        """
+        try:
+            if not self.cte_definitions:
+                return ';\n'.join(query.rstrip(';') for query in self.main_queries)
 
-        # Format each CTE definition
-        cte_clauses = []
-        for name, query in self.cte_definitions:
-            # Ensure query doesn't have trailing semicolons
-            clean_query = query.rstrip(';')
-            cte_clauses.append(f"{name} AS (\n{self._indent(clean_query)}\n)")
-        
-        # Format each main query - ensure they don't have trailing semicolons except the last one
-        formatted_main_queries = []
-        for i, query in enumerate(self.main_queries):
-            # Remove any trailing semicolons
-            clean_query = query.rstrip(';')
-            # Add back semicolon for all but potentially the last query
-            if i < len(self.main_queries) - 1:
-                formatted_main_queries.append(f"{clean_query};")
-            else:
-                # For the last query, keep it as is (without trailing semicolon)
-                formatted_main_queries.append(clean_query)
-        
-        # Build the final query
-        return f"WITH {',\n'.join(cte_clauses)}\n{' '.join(formatted_main_queries)}"
+            # Format each CTE definition
+            cte_clauses = []
+            for name, query in self.cte_definitions:
+                # Ensure query doesn't have trailing semicolons
+                clean_query = query.rstrip(';')
+                cte_clauses.append(f"{name} AS (\n{self._indent(clean_query)}\n)")
+            
+            # Format each main query - ensure they don't have trailing semicolons except the last one
+            formatted_main_queries = []
+            for i, query in enumerate(self.main_queries):
+                # Remove any trailing semicolons
+                clean_query = query.rstrip(';')
+                # Add back semicolon for all but potentially the last query
+                if i < len(self.main_queries) - 1:
+                    formatted_main_queries.append(f"{clean_query};")
+                else:
+                    # For the last query, keep it as is (without trailing semicolon)
+                    formatted_main_queries.append(clean_query)
+            
+            # Build the final query
+            return f"WITH {',\n'.join(cte_clauses)}\n{' '.join(formatted_main_queries)}"
+        except Exception as e:
+            raise ConverterError(f"Error building final query: {str(e)}") from e
 
     def _indent(self, sql: str) -> str:
-        """Apply configured indentation"""
+        """
+        Apply configured indentation to SQL.
+        
+        Args:
+            sql: SQL string to indent
+            
+        Returns:
+            Indented SQL
+        """
         indent = ' ' * self.indent_spaces
         return '\n'.join(f"{indent}{line}" for line in sql.split('\n'))

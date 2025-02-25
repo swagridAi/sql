@@ -1,13 +1,17 @@
-# sql_converter/parsers/sql_parser.py
 import re
 import logging
 from pathlib import Path
-from typing import List, Dict, Optional, Generator, Tuple
+from typing import List, Dict, Optional, Generator, Tuple, Union, Match
+
+from sql_converter.exceptions import SQLSyntaxError, ParserError
+
 
 class SQLParser:
+    """Parser for SQL statements with comprehensive error handling."""
+    
     def __init__(self, dialect: str = 'ansi'):
         self.dialect = dialect.lower()
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger(__name__)
         self.comment_handlers = {
             'ansi': self._handle_ansi_comments,
             'tsql': self._handle_tsql_comments,
@@ -16,52 +20,164 @@ class SQLParser:
 
     def validate_sql(self, sql: str) -> None:
         """
-        Performs validation on SQL syntax and raises ValueError for invalid SQL.
+        Validates SQL syntax and raises specific SQLSyntaxError exceptions.
+        
+        Args:
+            sql: The SQL statement to validate
+            
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
         """
-        # Check for basic syntax errors
+        # Find line number for error messages
+        def get_line_number(position: int) -> int:
+            """Get line number for a position in the SQL string."""
+            return sql[:position].count('\n') + 1
+        
+        # Check for empty SQL
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+        
+        # Check for basic syntax errors with more precise error messages
         if "FROM WHERE" in sql.upper():
-            raise ValueError("Invalid SQL syntax: FROM clause missing table name")
+            match = re.search(r'FROM\s+WHERE', sql, re.IGNORECASE)
+            if match:
+                position = match.start()
+                raise SQLSyntaxError(
+                    "Missing table name between FROM and WHERE clauses",
+                    position=position,
+                    line=get_line_number(position)
+                )
         
-        # Check for unbalanced parentheses
+        # Check for unbalanced parentheses with position tracking
         if sql.count('(') != sql.count(')'):
-            raise ValueError("Invalid SQL syntax: Unbalanced parentheses")
+            # Find the position where parentheses become unbalanced
+            balance = 0
+            for i, char in enumerate(sql):
+                if char == '(':
+                    balance += 1
+                elif char == ')':
+                    balance -= 1
+                    if balance < 0:
+                        # Too many closing parentheses
+                        raise SQLSyntaxError(
+                            "Unbalanced parentheses: unexpected ')'",
+                            position=i,
+                            line=get_line_number(i)
+                        )
+            # If we get here with positive balance, there are too many opening parentheses
+            if balance > 0:
+                raise SQLSyntaxError(
+                    f"Unbalanced parentheses: missing {balance} closing parentheses",
+                    position=len(sql),
+                    line=get_line_number(len(sql))
+                )
         
-        # Check for unbalanced quotes
-        single_quotes = sql.count("'") - sql.count("''")  # Account for escaped quotes
-        if single_quotes % 2 != 0:
-            raise ValueError("Invalid SQL syntax: Unbalanced single quotes")
+        # Check for unbalanced quotes with detailed error messages
+        try:
+            self._check_balanced_quotes(sql)
+        except SQLSyntaxError as e:
+            # Re-raise with line number information
+            position = getattr(e, 'position', None)
+            if position is not None:
+                line = get_line_number(position)
+                raise SQLSyntaxError(
+                    e.message,
+                    position=position,
+                    line=line
+                ) from None
+            raise
         
-        double_quotes = sql.count('"') - sql.count('""')  # Account for escaped quotes
-        if double_quotes % 2 != 0:
-            raise ValueError("Invalid SQL syntax: Unbalanced double quotes")
-        
-        # Check for common SQL syntax errors
-        if re.search(r'\bSELECT\b.*\bFROM\b.*\bJOIN\b.*\bWHERE\b', sql, re.IGNORECASE) and \
-           not re.search(r'\bJOIN\b.*\bON\b', sql, re.IGNORECASE):
-            raise ValueError("Invalid SQL syntax: JOIN missing ON clause")
+        # Check for JOIN without ON clause
+        join_without_on = re.search(r'\bJOIN\b(?:(?!\bON\b).)*?(?:\bWHERE\b|\bGROUP\s+BY\b|\bORDER\s+BY\b|$)', 
+                                   sql, re.IGNORECASE | re.DOTALL)
+        if join_without_on and not re.search(r'\bCROSS\s+JOIN\b', sql, re.IGNORECASE):
+            # Exclude CROSS JOIN which doesn't need ON
+            match_text = join_without_on.group(0)
+            if not re.search(r'\bUSING\b', match_text, re.IGNORECASE):  # Also exclude JOIN USING
+                position = join_without_on.start()
+                raise SQLSyntaxError(
+                    "JOIN clause missing ON condition",
+                    position=position,
+                    line=get_line_number(position)
+                )
         
         # Check for invalid GROUP BY syntax
-        if re.search(r'\bGROUP\s+BY\b.*\bWHERE\b', sql, re.IGNORECASE):
-            raise ValueError("Invalid SQL syntax: WHERE clause must come before GROUP BY")
+        group_where = re.search(r'\bGROUP\s+BY\b.*?\bWHERE\b', sql, re.IGNORECASE | re.DOTALL)
+        if group_where:
+            position = group_where.start()
+            raise SQLSyntaxError(
+                "WHERE clause must come before GROUP BY",
+                position=position,
+                line=get_line_number(position)
+            )
+
+    def _check_balanced_quotes(self, sql: str) -> None:
+        """
+        Check for balanced single and double quotes in SQL.
         
-        # Check for missing FROM clause in SELECT
-        if re.search(r'\bSELECT\b.*\bWHERE\b', sql, re.IGNORECASE) and \
-           not re.search(r'\bFROM\b', sql, re.IGNORECASE):
-            raise ValueError("Invalid SQL syntax: SELECT with WHERE but missing FROM clause")
+        Args:
+            sql: The SQL statement to check
+            
+        Raises:
+            SQLSyntaxError: When quotes are unbalanced
+        """
+        # Track quotation state
+        in_single_quote = False
+        in_double_quote = False
+        escaped = False
+        
+        for i, char in enumerate(sql):
+            # Handle escape sequences
+            if escaped:
+                escaped = False
+                continue
+                
+            if char == '\\':
+                escaped = True
+                continue
+                
+            # Toggle quote state
+            if char == "'":
+                # Handle escaped single quotes ('') in SQL
+                if in_single_quote and i + 1 < len(sql) and sql[i + 1] == "'":
+                    # This is an escaped quote, skip the next one
+                    escaped = True
+                    continue
+                in_single_quote = not in_single_quote
+                    
+            elif char == '"':
+                # Handle escaped double quotes ("") in SQL
+                if in_double_quote and i + 1 < len(sql) and sql[i + 1] == '"':
+                    # This is an escaped quote, skip the next one
+                    escaped = True
+                    continue
+                in_double_quote = not in_double_quote
+                
+        # Check final state
+        if in_single_quote:
+            raise SQLSyntaxError("Unbalanced single quotes", position=len(sql) - 1)
+        if in_double_quote:
+            raise SQLSyntaxError("Unbalanced double quotes", position=len(sql) - 1)
 
     def split_statements(self, sql: str) -> List[str]:
         """
-        Split SQL into individual statements while handling:
-        - Nested parentheses/brackets
-        - String literals
-        - Different comment types
-        - Dialect-specific syntax
+        Split SQL into individual statements while handling comments, strings, and nesting.
+        
+        Args:
+            sql: SQL code potentially containing multiple statements
+            
+        Returns:
+            List of individual SQL statements
+            
+        Raises:
+            ParserError: When the parser encounters an unrecoverable error
+            SQLSyntaxError: When SQL contains syntax errors
         """
         # Validate the overall SQL first
         try:
             self.validate_sql(sql)
-        except ValueError as e:
-            self.logger.error(f"SQL validation error: {str(e)}")
+        except SQLSyntaxError as e:
+            self.logger.error(f"SQL validation error: {e}")
             raise
             
         statements = []
@@ -77,33 +193,41 @@ class SQLParser:
             'prev_char': None,
         }
 
-        for char in sql:
-            # Update state before processing current character
-            self._update_state(char, state)
+        try:
+            for i, char in enumerate(sql):
+                # Update state before processing current character
+                self._update_state(char, state, i)
 
-            # Skip adding character if it's part of a comment
-            if not state['in_comment']:
-                current.append(char)
-            
-            # Check for statement termination
-            if (char == ';' and 
-                not state['in_string'] and 
-                not state['in_comment'] and 
-                state['paren_depth'] == 0 and 
-                state['bracket_depth'] == 0):
+                # Skip adding character if it's part of a comment
+                if not state['in_comment']:
+                    current.append(char)
                 
-                statement = ''.join(current).strip()
-                if statement:
-                    statements.append(statement)
-                current = []
-                state.update({
-                    'in_string': False,
-                    'string_char': None,
-                    'paren_depth': 0,
-                    'bracket_depth': 0,
-                    'escape_next': False,
-                })
-                # Don't reset comment state or prev_char as they might continue
+                # Check for statement termination
+                if (char == ';' and 
+                    not state['in_string'] and 
+                    not state['in_comment'] and 
+                    state['paren_depth'] == 0 and 
+                    state['bracket_depth'] == 0):
+                    
+                    statement = ''.join(current).strip()
+                    if statement:
+                        statements.append(statement)
+                    current = []
+                    state.update({
+                        'in_string': False,
+                        'string_char': None,
+                        'paren_depth': 0,
+                        'bracket_depth': 0,
+                        'escape_next': False,
+                    })
+                    # Don't reset comment state or prev_char as they might continue
+        except Exception as e:
+            # Convert any unexpected errors to ParserError with context
+            position = i if 'i' in locals() else 0
+            raise ParserError(
+                f"Error while parsing SQL: {str(e)}",
+                source=sql[:100] + '...' if len(sql) > 100 else sql
+            ) from e
 
         # Add remaining content if not empty
         final_statement = ''.join(current).strip()
@@ -113,13 +237,20 @@ class SQLParser:
         # Filter out any empty statements
         return [stmt for stmt in statements if stmt]
 
-    def _update_state(self, char: str, state: Dict) -> None:
-        """Update parsing state based on current character"""
+    def _update_state(self, char: str, state: Dict, position: int) -> None:
+        """
+        Update parsing state based on current character.
+        
+        Args:
+            char: Current character being processed
+            state: Current parser state dictionary
+            position: Current position in the SQL string
+        """
         # First check if we're in a comment
         if state['in_comment']:
             # Handle comment state
             handler = self.comment_handlers.get(self.dialect, self._handle_ansi_comments)
-            handler(char, state)
+            handler(char, state, position)
             if state['in_comment'] == False:
                 # If we just exited a comment, reset prev_char to avoid
                 # misinterpreting the end of a comment as the start of something else
@@ -145,7 +276,7 @@ class SQLParser:
         # Only check for comments if we're not in a string
         if not state['in_string']:
             handler = self.comment_handlers.get(self.dialect, self._handle_ansi_comments)
-            handler(char, state)
+            handler(char, state, position)
             
             # Handle brackets (TSQL)
             if self.dialect == 'tsql' and not state['in_comment']:
@@ -165,8 +296,15 @@ class SQLParser:
         if not state['in_comment']:
             state['prev_char'] = char
 
-    def _handle_ansi_comments(self, char: str, state: Dict) -> None:
-        """Handle standard SQL comments (-- and /* */ style)"""
+    def _handle_ansi_comments(self, char: str, state: Dict, position: int) -> None:
+        """
+        Handle standard SQL comments (-- and /* */ style).
+        
+        Args:
+            char: Current character being processed
+            state: Current parser state dictionary
+            position: Current position in the SQL string
+        """
         if state['in_comment']:
             # Handle end of comments
             if state['comment_type'] == 'block':
@@ -189,83 +327,137 @@ class SQLParser:
                 state['in_comment'] = True
                 state['comment_type'] = 'block'
 
-    def _handle_tsql_comments(self, char: str, state: Dict) -> None:
-        """Handle T-SQL specific comments (same as ANSI plus GO statements)"""
-        self._handle_ansi_comments(char, state)
+    def _handle_tsql_comments(self, char: str, state: Dict, position: int) -> None:
+        """
+        Handle T-SQL specific comments.
         
-        # Handle GO statements outside of comments and strings
-        # (handled in split_statements as they terminate statements)
+        Args:
+            char: Current character being processed
+            state: Current parser state dictionary
+            position: Current position in the SQL string
+        """
+        self._handle_ansi_comments(char, state, position)
 
-    def _handle_mysql_comments(self, char: str, state: Dict) -> None:
-        """Handle MySQL specific comments (# style)"""
+    def _handle_mysql_comments(self, char: str, state: Dict, position: int) -> None:
+        """
+        Handle MySQL specific comments (# style).
+        
+        Args:
+            char: Current character being processed
+            state: Current parser state dictionary
+            position: Current position in the SQL string
+        """
         if state['in_comment']:
             # Let ANSI handler manage comment endings
-            self._handle_ansi_comments(char, state)
+            self._handle_ansi_comments(char, state, position)
         elif not state['in_string'] and char == '#':
             state['in_comment'] = True
             state['comment_type'] = 'line'
         else:
-            self._handle_ansi_comments(char, state)
+            self._handle_ansi_comments(char, state, position)
 
     def tokenize(self, sql: str) -> Generator[Tuple[str, str], None, None]:
         """
-        Tokenize SQL into meaningful components
-        Yields (token_type, token_value) tuples
-        """
-        # First, preprocess to remove comments
-        clean_sql = self._remove_comments(sql)
+        Tokenize SQL into meaningful components.
         
-        token_spec = [
-            ('STRING',      r"'(''|[^'])*'"),     # Single-quoted strings
-            ('STRING',      r'"([^"]|"")*"'),     # Double-quoted strings
-            ('NUMBER',      r'\d+(\.\d+)?([eE][+-]?\d+)?'),  # Numbers
-            ('KEYWORD',     r'\b(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|'
-                            r'JOIN|INTO|CREATE|TEMP|TABLE|AS|AND|OR|'
-                            r'GROUP BY|ORDER BY|HAVING|LIMIT)\b', re.IGNORECASE),
-            ('IDENTIFIER',  r'[a-zA-Z_][a-zA-Z0-9_#@$]*'),  # Identifiers
-            ('OPERATOR',    r'[+\-*/%=<>!~&|^]'),  # Operators
-            ('PAREN',       r'[()]'),              # Parentheses
-            ('BRACKET',     r'[\[\]]'),            # Brackets
-            ('SEMICOLON',   r';'),                 # Statement terminator
-            ('WHITESPACE',  r'\s+'),               # Whitespace
-        ]
+        Args:
+            sql: SQL statement to tokenize
+            
+        Returns:
+            Generator yielding (token_type, token_value) tuples
+            
+        Raises:
+            ParserError: When tokenization fails
+        """
+        try:
+            # First, preprocess to remove comments
+            clean_sql = self._remove_comments(sql)
+            
+            token_spec = [
+                ('STRING',      r"'(''|[^'])*'"),     # Single-quoted strings
+                ('STRING',      r'"([^"]|"")*"'),     # Double-quoted strings
+                ('NUMBER',      r'\d+(\.\d+)?([eE][+-]?\d+)?'),  # Numbers
+                ('KEYWORD',     r'\b(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|'
+                                r'JOIN|INTO|CREATE|TEMP|TABLE|AS|AND|OR|'
+                                r'GROUP BY|ORDER BY|HAVING|LIMIT)\b', re.IGNORECASE),
+                ('IDENTIFIER',  r'[a-zA-Z_][a-zA-Z0-9_#@$]*'),  # Identifiers
+                ('OPERATOR',    r'[+\-*/%=<>!~&|^]'),  # Operators
+                ('PAREN',       r'[()]'),              # Parentheses
+                ('BRACKET',     r'[\[\]]'),            # Brackets
+                ('SEMICOLON',   r';'),                 # Statement terminator
+                ('WHITESPACE',  r'\s+'),               # Whitespace
+            ]
 
-        tok_regex = '|'.join(
-            f'(?P<{name}>{pattern})' for name, pattern in token_spec
-        )
-        flags = re.DOTALL | re.IGNORECASE
-        for match in re.finditer(tok_regex, clean_sql, flags):
-            kind = match.lastgroup
-            value = match.group().strip()
-            if kind == 'WHITESPACE':
-                continue
-            yield (kind, value)
+            tok_regex = '|'.join(
+                f'(?P<{name}>{pattern})' for name, pattern in token_spec
+            )
+            flags = re.DOTALL | re.IGNORECASE
+            
+            for match in re.finditer(tok_regex, clean_sql, flags):
+                kind = match.lastgroup
+                value = match.group().strip()
+                if kind == 'WHITESPACE':
+                    continue
+                yield (kind, value)
+                
+        except Exception as e:
+            # Convert any unexpected errors to ParserError
+            raise ParserError(
+                f"Error during SQL tokenization: {str(e)}",
+                source=sql[:100] + '...' if len(sql) > 100 else sql
+            ) from e
 
     def _remove_comments(self, sql: str) -> str:
         """
         Remove SQL comments to simplify tokenization.
-        Handles both -- line comments and /* */ block comments.
+        
+        Args:
+            sql: SQL statement containing comments
+            
+        Returns:
+            SQL with comments removed
         """
-        # First, remove /* */ block comments
-        pattern = r'/\*[\s\S]*?\*/'
-        sql = re.sub(pattern, ' ', sql)
-        
-        # Then, remove -- line comments (up to end of line)
-        pattern = r'--.*?$'
-        sql = re.sub(pattern, ' ', sql, flags=re.MULTILINE)
-        
-        # Finally, remove # MySQL style comments
-        pattern = r'#.*?$'
-        sql = re.sub(pattern, ' ', sql, flags=re.MULTILINE)
-        
-        return sql
+        try:
+            # First, remove /* */ block comments
+            pattern = r'/\*[\s\S]*?\*/'
+            sql = re.sub(pattern, ' ', sql)
+            
+            # Then, remove -- line comments (up to end of line)
+            pattern = r'--.*?$'
+            sql = re.sub(pattern, ' ', sql, flags=re.MULTILINE)
+            
+            # Finally, remove # MySQL style comments
+            pattern = r'#.*?$'
+            sql = re.sub(pattern, ' ', sql, flags=re.MULTILINE)
+            
+            return sql
+        except Exception as e:
+            # Convert regex errors to ParserError
+            raise ParserError(f"Error removing comments: {str(e)}")
 
     def parse_identifiers(self, sql: str) -> List[str]:
-        """Extract all identifiers from SQL query"""
-        identifiers = []
-        for kind, value in self.tokenize(sql):
-            if kind == 'IDENTIFIER':
-                # Handle quoted identifiers
-                clean_value = value.strip('[]"\'`')
-                identifiers.append(clean_value)
-        return identifiers
+        """
+        Extract all identifiers from SQL query.
+        
+        Args:
+            sql: SQL statement to extract identifiers from
+            
+        Returns:
+            List of SQL identifiers found
+            
+        Raises:
+            ParserError: When identifier extraction fails
+        """
+        try:
+            identifiers = []
+            for kind, value in self.tokenize(sql):
+                if kind == 'IDENTIFIER':
+                    # Handle quoted identifiers
+                    clean_value = value.strip('[]"\'`')
+                    identifiers.append(clean_value)
+            return identifiers
+        except Exception as e:
+            if isinstance(e, ParserError):
+                raise
+            # Convert other errors to ParserError
+            raise ParserError(f"Error extracting identifiers: {str(e)}")
