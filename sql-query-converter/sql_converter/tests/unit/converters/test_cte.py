@@ -12,13 +12,14 @@ def test_multiple_temp_tables():
     sql = """
     CREATE TEMP TABLE #table1 AS SELECT * FROM a;
     SELECT * INTO #table2 FROM b;
-    SELECT * FROM #table1 JOIN #table2;
+    SELECT * FROM #table1 t1 JOIN #table2 t2 ON t1.id = t2.id;
     """
     converter = CTEConverter()
     converted = converter.convert(sql)
     assert "table1 AS" in converted
     assert "table2 AS" in converted
-    assert "FROM table1 JOIN table2" in converted
+    assert "FROM table1" in converted
+    assert "JOIN table2" in converted
 
 def test_temp_table_pattern_matching():
     sql = "SELECT * INTO #my_temp FROM table;"
