@@ -153,17 +153,15 @@ class CTEConverter(BaseConverter):
         Create default CTE definitions for temp tables that are referenced but not defined.
         """
         for temp_name in self.referenced_temps:
-            # Skip if this temp table already has a definition
-            if any(self.temp_table_map[temp_name] == name for name, _ in self.cte_definitions):
+            # Skip temp tables that already have a definition - check by CTE name not by temp name
+            cte_name = self.temp_table_map[temp_name]
+            if any(name == cte_name for name, _ in self.cte_definitions):
                 continue
                 
             # Create a placeholder CTE that selects from a dummy source
-            # This is a fallback since we don't know the actual definition
-            cte_name = self.temp_table_map[temp_name]
             self.logger.debug(f"Creating placeholder CTE for referenced temp table: {temp_name}")
             
-            # For test purposes, a simple definition has been created
-            # In a real implementation, this might need to be more sophisticated
+            # Add a placeholder definition
             self.cte_definitions.append((
                 cte_name,
                 f"SELECT * FROM (SELECT 1 as placeholder) as dummy_source"

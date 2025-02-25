@@ -213,23 +213,51 @@ class SQLParser:
             'paren_depth': 0,
             'bracket_depth': 0,
             'escape_next': False,
-            'prev_char': None,
         }
+
+        # Use regex to replace comments with spaces
+        # First, remove block comments (/* ... */)
+        sql = re.sub(r'/\*.*?\*/', ' ', sql, flags=re.DOTALL)
+        
+        # Then handle line comments (--) by replacing until end of line
+        # Make sure to preserve newlines
+        sql = re.sub(r'--.*?(\n|$)', '\n', sql, flags=re.DOTALL)
 
         try:
             for i, char in enumerate(sql):
-                prev_state = state.copy()
-                # Update state before processing current character
-                self._update_state(char, state, i)
-
-                # Skip adding character if it's part of a comment
-                if not state['in_comment']:
-                    current.append(char)
+                # Handle string literals
+                if state['in_string']:
+                    if state['escape_next']:
+                        state['escape_next'] = False
+                    elif char == '\\':
+                        state['escape_next'] = True
+                    elif char == state['string_char']:
+                        state['in_string'] = False
+                        state['string_char'] = None
+                elif char in ("'", '"'):
+                    state['in_string'] = True
+                    state['string_char'] = char
+                
+                # Handle parentheses and brackets (only when not in a string)
+                if not state['in_string']:
+                    if char == '(':
+                        state['paren_depth'] += 1
+                    elif char == ')':
+                        state['paren_depth'] = max(0, state['paren_depth'] - 1)
+                    
+                    # Handle brackets for TSQL
+                    if self.dialect == 'tsql':
+                        if char == '[':
+                            state['bracket_depth'] += 1
+                        elif char == ']':
+                            state['bracket_depth'] = max(0, state['bracket_depth'] - 1)
+                
+                # Add character to current statement
+                current.append(char)
                 
                 # Check for statement termination
                 if (char == ';' and 
                     not state['in_string'] and 
-                    not state['in_comment'] and 
                     state['paren_depth'] == 0 and 
                     state['bracket_depth'] == 0):
                     
@@ -244,7 +272,7 @@ class SQLParser:
                         'bracket_depth': 0,
                         'escape_next': False,
                     })
-                    # Don't reset comment state or prev_char as they might continue
+                
         except Exception as e:
             # Convert any unexpected errors to ParserError with context
             position = i if 'i' in locals() else 0
@@ -261,65 +289,6 @@ class SQLParser:
         # Filter out any empty statements
         return [stmt for stmt in statements if stmt]
 
-    def _update_state(self, char: str, state: Dict, position: int) -> None:
-        """
-        Update parsing state based on current character.
-        
-        Args:
-            char: Current character being processed
-            state: Current parser state dictionary
-            position: Current position in the SQL string
-        """
-        # First check if we're in a comment
-        if state['in_comment']:
-            # Handle comment state
-            handler = self.comment_handlers.get(self.dialect, self._handle_ansi_comments)
-            handler(char, state, position)
-            if state['in_comment'] == False:
-                # If we just exited a comment, reset prev_char to avoid
-                # misinterpreting the end of a comment as the start of something else
-                state['prev_char'] = None
-            else:
-                # Update prev_char only if still in comment
-                state['prev_char'] = char
-            return
-        
-        # Handle string literals and escaping
-        if state['in_string']:
-            if state['escape_next']:
-                state['escape_next'] = False
-            elif char == '\\':
-                state['escape_next'] = True
-            elif char == state['string_char']:
-                state['in_string'] = False
-                state['string_char'] = None
-        elif char in ("'", '"'):
-            state['in_string'] = True
-            state['string_char'] = char
-        
-        # Only check for comments if we're not in a string
-        if not state['in_string']:
-            handler = self.comment_handlers.get(self.dialect, self._handle_ansi_comments)
-            handler(char, state, position)
-            
-            # Handle brackets (TSQL)
-            if self.dialect == 'tsql' and not state['in_comment']:
-                if char == '[':
-                    state['bracket_depth'] += 1
-                elif char == ']':
-                    state['bracket_depth'] = max(0, state['bracket_depth'] - 1)
-            
-            # Handle parentheses
-            if not state['in_comment']:
-                if char == '(':
-                    state['paren_depth'] += 1
-                elif char == ')':
-                    state['paren_depth'] = max(0, state['paren_depth'] - 1)
-        
-        # Update previous character for next iteration if not in comment
-        if not state['in_comment']:
-            state['prev_char'] = char
-
     def _handle_ansi_comments(self, char: str, state: Dict, position: int) -> None:
         """
         Handle standard SQL comments (-- and /* */ style).
@@ -329,28 +298,8 @@ class SQLParser:
             state: Current parser state dictionary
             position: Current position in the SQL string
         """
-        if state['in_comment']:
-            # Handle end of comments
-            if state['comment_type'] == 'block':
-                if state['prev_char'] == '*' and char == '/':
-                    state['in_comment'] = False
-                    state['comment_type'] = None
-            elif state['comment_type'] == 'line' and char == '\n':
-                state['in_comment'] = False
-                state['comment_type'] = None
-        elif not state['in_string']:  # Only check for comments when not in a string
-            # Handle start of comments
-            if char == '-' and state['prev_char'] == '-':
-                state['in_comment'] = True
-                state['comment_type'] = 'line'
-                state['prev_char'] = None  # Reset prev_char to avoid capturing the dash
-            elif char == '/' and state['prev_char'] == '*':
-                # This is actually an end of block comment marker 
-                # that wasn't caught in the first part, ignore it
-                pass
-            elif char == '*' and state['prev_char'] == '/':
-                state['in_comment'] = True
-                state['comment_type'] = 'block'
+        # This method is deprecated as we now handle comments directly in split_statements
+        pass
 
     def _handle_tsql_comments(self, char: str, state: Dict, position: int) -> None:
         """
@@ -361,7 +310,8 @@ class SQLParser:
             state: Current parser state dictionary
             position: Current position in the SQL string
         """
-        self._handle_ansi_comments(char, state, position)
+        # This method is deprecated as we now handle comments directly in split_statements
+        pass
 
     def _handle_mysql_comments(self, char: str, state: Dict, position: int) -> None:
         """
@@ -372,14 +322,8 @@ class SQLParser:
             state: Current parser state dictionary
             position: Current position in the SQL string
         """
-        if state['in_comment']:
-            # Let ANSI handler manage comment endings
-            self._handle_ansi_comments(char, state, position)
-        elif not state['in_string'] and char == '#':
-            state['in_comment'] = True
-            state['comment_type'] = 'line'
-        else:
-            self._handle_ansi_comments(char, state, position)
+        # This method is deprecated as we now handle comments directly in split_statements
+        pass
 
     def tokenize(self, sql: str) -> Generator[Tuple[str, str], None, None]:
         """
