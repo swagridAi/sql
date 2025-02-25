@@ -1,0 +1,10 @@
+# Ignore all SQL files by default
+*.sql
+
+# Exception: Include SQL test fixtures 
+!sql-query-converter/sql_converter/tests/fixtures/**/*.sql
+
+# Output directories
+converted/
+converted_sql/
+output/

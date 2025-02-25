@@ -1,0 +1,2 @@
+User → cli.py → ConfigManager → SQLConverterApp → CTEConverter → SQLParser
+            ↳ Logging          ↳ File I/O         ↳ PivotConverter

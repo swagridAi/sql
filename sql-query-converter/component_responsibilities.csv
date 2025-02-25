@@ -1,0 +1,8 @@
+﻿File/Folder,Responsibilities,Dependencies
+cli.py,"Entry point, argument parsing, workflow orchestration","All converters, utils"
+converters/base.py,"Define converter interface, common functionality","utils.config, utils.logging"
+converters/cte.py,Temp table → CTE conversion logic,"parsers, utils"
+parsers/sql_parser.py,"SQL statement splitting, tokenization, syntax analysis",(pure Python)
+utils/config.py,Load/merge configurations from files/ENV/CLI,(YAML/ENV handling)
+utils/logging.py,Configure logging system,Python logging
+tests/,Verify component behavior,"pytest, fixtures"

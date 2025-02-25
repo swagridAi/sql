@@ -1,0 +1,19 @@
+2025-02-09 19:40:50,895 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\test.sql
+2025-02-09 19:40:50,899 - SQLConverterApp - INFO - Saved converted SQL to: converted
+2025-02-10 06:44:35,052 - root - ERROR - Fatal error: Invalid input path: input.sql
+2025-02-10 06:45:57,908 - root - ERROR - Fatal error: Invalid input path: test.sql
+2025-02-10 06:46:16,291 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\test.sql
+2025-02-10 06:46:16,291 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 06:48:58,965 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\test.sql
+2025-02-10 06:48:58,965 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 07:01:27,981 - root - ERROR - Fatal error: Invalid input path: input.sql
+2025-02-10 07:01:48,025 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\test.sql
+2025-02-10 07:01:48,025 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 07:02:04,142 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\basic_query.sql
+2025-02-10 07:02:04,142 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 07:02:45,659 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\basic_query.txt
+2025-02-10 07:02:45,674 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 07:03:08,301 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\sql_query_full.txt
+2025-02-10 07:03:08,316 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-25 13:42:42,064 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\test.sql
+2025-02-25 13:42:42,064 - SQLConverterApp - INFO - Saved converted SQL to: C:\Users\User\python_code\sql_conversion\test.sql

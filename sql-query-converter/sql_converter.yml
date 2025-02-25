@@ -1,0 +1,17 @@
+converters:
+  - cte
+
+logging:
+  level: DEBUG
+  file: conversions.log
+
+cte_converter:
+  indent_spaces: 2
+  temp_table_patterns:
+    - "#?temp_*"
+    - "#?tmp_*"
+    - "#.*"
+
+output:
+  default_output_dir: ./converted_sql
+  overwrite: true

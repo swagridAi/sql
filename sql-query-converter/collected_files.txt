@@ -1,0 +1,1305 @@
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\component_responsibilities.csv
+================================================================================
+﻿File/Folder,Responsibilities,Dependencies
+cli.py,"Entry point, argument parsing, workflow orchestration","All converters, utils"
+converters/base.py,"Define converter interface, common functionality","utils.config, utils.logging"
+converters/cte.py,Temp table → CTE conversion logic,"parsers, utils"
+parsers/sql_parser.py,"SQL statement splitting, tokenization, syntax analysis",(pure Python)
+utils/config.py,Load/merge configurations from files/ENV/CLI,(YAML/ENV handling)
+utils/logging.py,Configure logging system,Python logging
+tests/,Verify component behavior,"pytest, fixtures"
+
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\conversions.log
+================================================================================
+2025-02-09 19:40:50,895 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\test.sql
+2025-02-09 19:40:50,899 - SQLConverterApp - INFO - Saved converted SQL to: converted
+2025-02-10 06:44:35,052 - root - ERROR - Fatal error: Invalid input path: input.sql
+2025-02-10 06:45:57,908 - root - ERROR - Fatal error: Invalid input path: test.sql
+2025-02-10 06:46:16,291 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\test.sql
+2025-02-10 06:46:16,291 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 06:48:58,965 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\test.sql
+2025-02-10 06:48:58,965 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 07:01:27,981 - root - ERROR - Fatal error: Invalid input path: input.sql
+2025-02-10 07:01:48,025 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\test.sql
+2025-02-10 07:01:48,025 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 07:02:04,142 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\basic_query.sql
+2025-02-10 07:02:04,142 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 07:02:45,659 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\basic_query.txt
+2025-02-10 07:02:45,674 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-10 07:03:08,301 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\sql_query_full.txt
+2025-02-10 07:03:08,316 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\converted
+================================================================================
+SELECT * INTO #temp FROM users;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\execution.txt
+================================================================================
+User → cli.py → ConfigManager → SQLConverterApp → CTEConverter → SQLParser
+            ↳ Logging          ↳ File I/O         ↳ PivotConverter
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\extract_code.py
+================================================================================
+import os
+
+def collect_all_files(root_dir, output_file):
+    with open(output_file, 'w', encoding='utf-8') as out_f:
+        for dirpath, _, filenames in os.walk(root_dir):
+            if "__pycache__" in dirpath:
+                continue  # Skip __pycache__ directories
+            for filename in filenames:
+                if filename == output_file:
+                    continue
+                file_path = os.path.join(dirpath, filename)
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+                        content = file.read()
+                        out_f.write(f"File: {file_path}\n")
+                        out_f.write("=" * 80 + "\n")
+                        out_f.write(content + "\n\n")
+                        out_f.write("#" * 80 + "\n\n")
+                except Exception as e:
+                    print(f"Could not read {file_path}: {e}")
+
+if __name__ == "__main__":
+    root_directory = input("Enter the directory path to scan: ")
+    output_filename = "collected_files.txt"
+    collect_all_files(root_directory, output_filename)
+    print(f"All files collected and saved in {output_filename}")
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\file-structure.txt
+================================================================================
+sql-query-converter/
+├── sql_converter/
+│   ├── __init__.py              # Package initialization
+│   │
+│   ├── cli.py                   # Command-line interface (entry point)
+│   │                            # Depends on: converters, utils.config, utils.logging
+│   │
+│   ├── converters/              # Conversion logic implementations
+│   │   ├── __init__.py          # Exports converter classes
+│   │   ├── base.py              # BaseConverter (abstract class)
+│   │   ├── cte.py               # CTEConverter (temp table → CTE)
+│   │   └── pivot.py             # PivotConverter (future implementation)
+│   │
+│   ├── parsers/                 # SQL parsing components
+│   │   ├── __init__.py          # Exports parser classes
+│   │   ├── sql_parser.py        # SQLParser (statement splitting/tokenization)
+│   │   └── tokenizer.py         # Advanced tokenization (if needed)
+│   │
+│   ├── utils/                   # Shared utilities
+│   │   ├── __init__.py          # Utility exports
+│   │   ├── config.py            # ConfigManager (configuration handling)
+│   │   ├── logging.py           # Logging setup
+│   │   ├── formatting.py        # SQL pretty-printing
+│   │   └── helpers.py           # Generic helper functions
+│   │
+│   └── exceptions.py            # Custom exceptions
+│
+├── tests/                       # Unit tests
+│   ├── __init__.py              # Test package
+│   ├── test_cte_converter.py    # CTE converter tests
+│   ├── test_sql_parser.py       # Parser tests
+│   └── fixtures/                # Test SQL files
+│       ├── input/               # Sample input SQL
+│       └── expected/            # Expected output SQL
+│
+├── docs/                        # Documentation
+│   ├── usage.md                 # User guide
+│   └── api.md                   # Developer documentation
+│
+├── examples/                    # Usage examples
+│   ├── basic_usage.py           # Simple API example
+│   └── sample_queries/          # Example SQL files
+│
+├── scripts/                     # Maintenance scripts
+│   ├── benchmark.py             # Performance testing
+│   └── validate_config.py       # Config validation
+│
+├── config/                      # Default configurations
+│   └── default.yml              # Base configuration
+│
+├── .gitignore                   # Version control ignore
+├── pyproject.toml               # Build configuration
+├── README.md                    # Project overview
+└── requirements.txt             # Dependencies
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\output
+================================================================================
+SELECT * INTO #temp FROM users;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\output.sql
+================================================================================
+WITH distinct_deal_measure AS (
+  SELECT DISTINCT 
+      fdm.setsk, 
+      fdm.dealsk, 
+      buh.busunithlevel02name, 
+      re.glreportingentitycode, 
+      drea.glreportingentitycode AS affglreportingentitycode, 
+      dmt.measuretypecode, 
+      gla.glaccountcode, 
+      dpt.productgroup
+  FROM miris.dimdealset dds
+  INNER JOIN (
+      SELECT 
+          setsk, dealsk, glbusinessunitsk, measuretypesk, glaccountsk, glreportingentitysk 
+      FROM miris.factdealmeasure fdm 
+      WHERE setsk = 15658
+  ) fdm 
+  ON dds.dealsk = fdm.dealsk AND fdm.setsk = 15658 AND dds.setsk = 15658
+  LEFT JOIN dbo.gldimaccount gla 
+  ON gla.glaccountsk = fdm.glaccountsk
+  LEFT JOIN dbo.dimmeasuretype dmt 
+  ON fdm.measuretypesk = dmt.measuretypesk
+  LEFT JOIN dbo.dimproducttype dpt 
+  ON dpt.producttypesk = dds.producttypesk
+  LEFT JOIN dbo.gldimbusinessunithierarchy buh 
+  ON fdm.glbusinessunitsk = buh.glbusinessunitsk 
+  AND buh.busunithtrecode = 'bunit_stat' 
+  AND buh.rowstatus = 'A'
+  LEFT JOIN dbo.gldimreportingentity re 
+  ON fdm.glreportingentitysk = re.glreportingentitysk
+  LEFT JOIN dbo.gldimreportingentity drea 
+  ON dds.glaffiliatereportingentitysk = drea.glreportingentitysk
+  INNER JOIN (
+      SELECT DISTINCT 
+          reg.glreportingentitysk, 
+          reg.glreportingentitycode, 
+          cr.reportingconsumercode 
+      FROM dbo.dimglreportingentitygroupmembership reg
+      INNER JOIN dbo.dimglconsumerelevance cr
+      ON reg.glreportingentitygroupcode = cr.glreportingentitygroupcode 
+      AND cr.rowstatus = 'A'
+      WHERE cr.reportingconsumercode LIKE '%EMEA%'
+      AND reg.rowstatus = 'A'
+  ) emea 
+  ON emea.glreportingentitysk = dds.glreportingentitysk
+  WHERE fdm.setsk = 15658
+  AND NOT (
+      (re.glreportingentitycode = drea.glreportingentitycode) 
+      AND SUBSTRING(gla.glaccountcode, 5, 2) = '99'
+  );
+)
+
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\requirements-test.txt
+================================================================================
+pytest>=7.0
+pytest-mock>=3.0
+freezegun>=1.0
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter.yml
+================================================================================
+converters:
+  - cte
+
+logging:
+  level: DEBUG
+  file: conversions.log
+
+cte_converter:
+  indent_spaces: 2
+  temp_table_patterns:
+    - "#?temp_*"
+    - "#?tmp_*"
+    - "#.*"
+
+output:
+  default_output_dir: ./converted_sql
+  overwrite: true
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\cli.py
+================================================================================
+# sql_converter/cli.py
+import argparse
+import logging
+import sys
+from pathlib import Path
+from typing import Dict, List
+from .converters import get_converter  # Replace existing converter imports
+from .converters.cte import CTEConverter
+from .utils.config import ConfigManager
+from .utils.logging import setup_logging
+from .converters.base import BaseConverter
+from typing import Any
+
+class SQLConverterApp:
+    def __init__(self, converters: Dict[str, BaseConverter], config: Dict[str, Any]):
+        self.converters = converters
+        self.config = config
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    def process_file(self, input_path: Path, output_path: Path, conversions: List[str]) -> None:
+        """Process a single SQL file"""
+        try:
+            self.logger.info(f"Processing file: {input_path}")
+            sql = input_path.read_text(encoding='utf-8')
+
+            converted_sql = sql
+            for conversion in conversions:
+                if conversion not in self.converters:
+                    raise ValueError(f"Unknown converter: {conversion}")
+                converter = self.converters[conversion]
+                converted_sql = converter.convert(converted_sql)
+
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(converted_sql, encoding='utf-8')
+            self.logger.info(f"Saved converted SQL to: {output_path}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to process {input_path}: {str(e)}")
+            raise
+
+    def process_directory(self, input_dir: Path, output_dir: Path, conversions: List[str]) -> None:
+        """Process all SQL files in a directory"""
+        for input_path in input_dir.glob("**/*.sql"):
+            if input_path.is_file():
+                relative_path = input_path.relative_to(input_dir)
+                output_path = output_dir / relative_path
+                self.process_file(input_path, output_path, conversions)
+
+
+def main():
+    # Initialize configuration
+    config_manager = ConfigManager()
+    config_manager.load_config()
+
+    # Setup logging
+    setup_logging(
+        level=config_manager.get('logging.level', 'INFO'),
+        log_file=config_manager.get('logging.file')
+    )
+
+    # Initialize converters with config
+    converters = {
+        name: get_converter(name, config_manager.get(f"{name}_converter", {}))
+        for name in config_manager.get('converters', ['cte'])
+    }
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description='SQL Query Conversion Tool',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        '-i', '--input',
+        type=Path,
+        required=True,
+        help='Input file or directory'
+    )
+    parser.add_argument(
+        '-o', '--output',
+        type=Path,
+        required=True,
+        help='Output file or directory'
+    )
+    parser.add_argument(
+        '-c', '--convert',
+        nargs='+',
+        choices=list(converters.keys()),
+        default=config_manager.get('converters', ['cte']),
+        help='Conversion operations to apply'
+    )
+
+    args = parser.parse_args()
+
+    # Update config with CLI arguments
+    config_manager.update_from_cli(vars(args))
+
+    # Initialize application
+    app = SQLConverterApp(converters, config_manager.config)
+
+    try:
+        input_path = config_manager.get('input_path', args.input)
+        output_path = config_manager.get('output_path', args.output)
+
+        if input_path.is_file():
+            if output_path.exists() and output_path.is_dir():
+                output_path = output_path / input_path.name
+            app.process_file(input_path, output_path, args.convert)
+        elif input_path.is_dir():
+            app.process_directory(input_path, output_path, args.convert)
+        else:
+            raise ValueError(f"Invalid input path: {input_path}")
+
+    except Exception as e:
+        logging.error(f"Fatal error: {str(e)}")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\__init__.py
+================================================================================
+__all__ = ['main']
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\converters\base.py
+================================================================================
+# File: sql-query-converter/sql_converter/converters/base.py
+from abc import ABC, abstractmethod
+from typing import Dict, Any
+import logging
+
+class BaseConverter(ABC):
+
+    def __init__(self, config: Dict[str, Any] = None):
+        self.config = config or {}
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    @abstractmethod
+    def convert(self, sql: str) -> str:
+        """Convert SQL using this converter's logic"""
+        pass
+
+__all__ = ['BaseConverter']  # Add this at the bottom
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\converters\cte.py
+================================================================================
+# sql_converter/converters/cte.py
+import re
+import logging
+from typing import List, Tuple, Dict, Optional, Any  # Added Any
+from sql_converter.converters.base import BaseConverter  # Absolute import
+from sql_converter.parsers.sql_parser import SQLParser  # Absolute import
+
+
+class CTEConverter(BaseConverter):
+    def __init__(self, config: Dict[str, Any] = None):
+        super().__init__(config)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        
+        # Configuration with defaults
+        self.indent_spaces = self.config.get('indent_spaces', 4)
+        temp_table_patterns = self.config.get('temp_table_patterns', ['#.*'])
+        
+        # Initialize components
+        self.parser = SQLParser()
+        self.temp_table_regex = self._process_patterns(temp_table_patterns)
+        
+        # Conversion state
+        self.cte_definitions: List[Tuple[str, str]] = []
+        self.main_queries: List[str] = []
+        self.temp_table_map: Dict[str, str] = {}
+        self.current_temp_table: Optional[str] = None
+
+    def _process_patterns(self, patterns: List[str]) -> str:
+        """Convert config patterns to regex pattern"""
+        regex_fragments = []
+        for pattern in patterns:
+            try:
+                # Convert simplified pattern to regex
+                processed = (
+                    pattern.replace('?', '.?')
+                           .replace('*', '.*')
+                           .replace('#', r'\#')
+                )
+                regex_fragments.append(processed)
+            except Exception as e:
+                self.logger.warning(f"Invalid pattern '{pattern}': {str(e)}")
+        
+        return '|'.join(regex_fragments) or r'\#.*'
+
+    def convert(self, sql: str) -> str:
+        """Main conversion entry point"""
+        self._reset_state()
+        statements = self.parser.split_statements(sql)
+        
+        for stmt in statements:
+            self._process_statement(stmt)
+        
+        return self._build_final_query()
+
+    def _reset_state(self):
+        """Reset converter state between conversions"""
+        self.cte_definitions.clear()
+        self.main_queries.clear()
+        self.temp_table_map.clear()
+        self.current_temp_table = None
+
+    def _process_statement(self, stmt: str) -> None:
+        """Process a single SQL statement"""
+        if self._handle_temp_creation(stmt):
+            return
+
+        if self.current_temp_table:
+            self._handle_temp_insert(stmt)
+        else:
+            self._add_main_query(stmt)
+
+    def _handle_temp_creation(self, stmt: str) -> bool:
+        """Handle temp table creation using configured patterns"""
+        return any([
+            self._handle_select_into(stmt),
+            self._handle_create_temp_as(stmt),
+            self._handle_create_temp(stmt)
+        ])
+
+    def _handle_select_into(self, stmt: str) -> bool:
+        """Handle SELECT INTO pattern"""
+        pattern = re.compile(
+            r'^\s*SELECT\s+(?P<select_clause>.+?)\s+INTO\s+(?P<table>\S+)\s+(?P<remainder>FROM.*)',
+            re.IGNORECASE | re.DOTALL
+        )
+
+        if not (match := pattern.match(stmt)):
+            return False
+
+        try:
+            raw_table = match.group('table')
+            if not re.search(self.temp_table_regex, raw_table):
+                return False
+
+            clean_name = raw_table.lstrip('#').replace('.', '_')
+            full_query = f"SELECT {match.group('select_clause')}\n{match.group('remainder')}"
+            
+            self.cte_definitions.append((clean_name, full_query))
+            self.temp_table_map[raw_table] = clean_name
+            return True
+
+        except Exception as e:
+            self.logger.error(f"SELECT INTO conversion failed: {str(e)}")
+            return False
+
+    def _handle_create_temp_as(self, stmt: str) -> bool:
+        """Handle CREATE TEMP TABLE AS SELECT"""
+        pattern = re.compile(
+            r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)\s+AS\s+(?P<query>SELECT.*)',
+            re.IGNORECASE | re.DOTALL
+        )
+
+        if not (match := pattern.match(stmt)):
+            return False
+
+        raw_table = match.group('table')
+        if not re.search(self.temp_table_regex, raw_table):
+            return False
+
+        clean_name = raw_table.lstrip('#').replace('.', '_')
+        self.cte_definitions.append((clean_name, match.group('query')))
+        self.temp_table_map[raw_table] = clean_name
+        return True
+
+    def _handle_create_temp(self, stmt: str) -> bool:
+        """Handle CREATE TEMP TABLE without AS SELECT"""
+        pattern = re.compile(
+            r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)',
+            re.IGNORECASE
+        )
+
+        if not (match := pattern.match(stmt)):
+            return False
+
+        raw_table = match.group('table')
+        if not re.search(self.temp_table_regex, raw_table):
+            return False
+
+        self.current_temp_table = raw_table
+        return True
+
+    def _handle_temp_insert(self, stmt: str) -> None:
+        """Handle INSERT INTO temp table"""
+        pattern = re.compile(
+            rf'^\s*INSERT\s+INTO\s+{re.escape(self.current_temp_table)}\s+(?P<query>SELECT.*)',
+            re.IGNORECASE | re.DOTALL
+        )
+
+        if (match := pattern.match(stmt)):
+            clean_name = self.current_temp_table.lstrip('#').replace('.', '_')
+            self.cte_definitions.append((clean_name, match.group('query')))
+            self.temp_table_map[self.current_temp_table] = clean_name
+            self.current_temp_table = None
+        else:
+            self._add_main_query(stmt)
+
+    def _add_main_query(self, stmt: str) -> None:
+        """Replace temp references in final queries"""
+        processed = stmt
+        for temp, cte in self.temp_table_map.items():
+            processed = re.sub(
+                rf'\b{re.escape(temp)}\b', 
+                cte, 
+                processed, 
+                flags=re.IGNORECASE
+            )
+        self.main_queries.append(processed)
+
+    def _build_final_query(self) -> str:
+        """Construct final CTE query"""
+        if not self.cte_definitions:
+            return ';\n'.join(self.main_queries)
+
+        cte_clauses = [
+            f"{name} AS (\n{self._indent(query)}\n)"
+            for name, query in self.cte_definitions
+        ]
+        return (
+            f"WITH {',\n'.join(cte_clauses)}\n"
+            f"{';\n'.join(self.main_queries)}"
+        )
+
+    def _indent(self, sql: str) -> str:
+        """Apply configured indentation"""
+        indent = ' ' * self.indent_spaces
+        return '\n'.join(f"{indent}{line}" for line in sql.split('\n'))
+    
+converter = CTEConverter(config={
+    'indent_spaces': 4,
+    'temp_table_patterns': ['#.*']
+})
+
+sql = "SELECT * INTO #temp FROM users;"
+print(converter.convert(sql))
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\converters\__init__.py
+================================================================================
+# sql_converter/converters/__init__.py
+from .base import BaseConverter
+# Register default converters
+from .cte import CTEConverter
+__all__ = ['CTEConverter']
+_converters = {}
+
+def register_converter(name: str, converter_class: type):
+    if not issubclass(converter_class, BaseConverter):
+        raise TypeError("Converters must inherit from BaseConverter")
+    _converters[name] = converter_class
+
+def get_converter(name: str, config: dict = None) -> BaseConverter:
+    if name not in _converters:
+        raise ValueError(f"Unknown converter: {name}")
+    return _converters[name](config=config)
+
+
+register_converter('cte', CTEConverter)
+# Future converters would be registered here
+# from .pivot import PivotConverter
+# register_converter('pivot', PivotConverter)
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\parsers\sql_parser.py
+================================================================================
+# sql_converter/parsers/sql_parser.py
+import re
+import logging
+from pathlib import Path
+from typing import List, Dict, Optional, Generator, Tuple
+
+class SQLParser:
+    def __init__(self, dialect: str = 'ansi'):
+        self.dialect = dialect.lower()
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.comment_handlers = {
+            'ansi': self._handle_ansi_comments,
+            'tsql': self._handle_tsql_comments,
+            'mysql': self._handle_mysql_comments,
+        }
+
+    def split_statements(self, sql: str) -> List[str]:
+        """
+        Split SQL into individual statements while handling:
+        - Nested parentheses/brackets
+        - String literals
+        - Different comment types
+        - Dialect-specific syntax
+        """
+        statements = []
+        current = []
+        state = {
+            'in_string': False,
+            'string_char': None,
+            'in_comment': False,
+            'comment_type': None,
+            'paren_depth': 0,
+            'bracket_depth': 0,
+            'escape_next': False,
+            'prev_char': None,
+        }
+
+        for char in sql:
+            prev_state = state.copy()
+            state['prev_char'] = prev_state['prev_char']
+            
+            # Update state before processing current character
+            self._update_state(char, state)
+
+            if not state['in_comment']:
+                current.append(char)
+
+            # Check for statement termination
+            if self._is_statement_end(char, state, prev_state):
+                statement = ''.join(current).strip()
+                if statement:
+                    statements.append(statement)
+                current = []
+                state.update({
+                    'in_string': False,
+                    'string_char': None,
+                    'in_comment': False,
+                    'comment_type': None,
+                    'paren_depth': 0,
+                    'bracket_depth': 0,
+                    'escape_next': False,
+                    'prev_char': None,
+                })
+
+            state['prev_char'] = char
+
+        # Add remaining content
+        final_statement = ''.join(current).strip()
+        if final_statement:
+            statements.append(final_statement)
+
+        return statements
+
+    def _update_state(self, char: str, state: Dict) -> None:
+        """Update parsing state based on current character"""
+        handler = self.comment_handlers.get(self.dialect, self._handle_ansi_comments)
+        handler(char, state)
+
+        # Handle string literals
+        if not state['in_comment'] and not state['escape_next']:
+            if char in ("'", '"'):
+                if state['in_string'] and char == state['string_char']:
+                    state['in_string'] = False
+                    state['string_char'] = None
+                else:
+                    state['in_string'] = True
+                    state['string_char'] = char
+            elif char == '\\' and state['in_string']:
+                state['escape_next'] = True
+                return
+
+        # Handle brackets (TSQL)
+        if self.dialect == 'tsql' and not state['in_comment']:
+            if char == '[':
+                state['bracket_depth'] += 1
+            elif char == ']':
+                state['bracket_depth'] = max(0, state['bracket_depth'] - 1)
+
+        # Handle parentheses
+        if not state['in_comment'] and not state['in_string']:
+            if char == '(':
+                state['paren_depth'] += 1
+            elif char == ')':
+                state['paren_depth'] = max(0, state['paren_depth'] - 1)
+
+        state['escape_next'] = False
+
+    def _is_statement_end(self, char: str, state: Dict, prev_state: Dict) -> bool:
+        """Determine if current character ends a statement"""
+        # Handle T-SQL GO statements
+        if self.dialect == 'tsql' and state['prev_char'] == 'G' and char == 'O':
+            return True
+        
+        # Handle standard semicolon termination
+        return (
+            char == ';' 
+            and not state['in_string']
+            and not state['in_comment']
+            and state['paren_depth'] == 0
+            and state['bracket_depth'] == 0
+        )
+
+    def _handle_ansi_comments(self, char: str, state: Dict) -> None:
+        """Handle standard SQL comments (- and /* */ style)"""
+        if state['in_comment']:
+            if state['comment_type'] == 'block':
+                if state['prev_char'] == '*' and char == '/':
+                    state['in_comment'] = False
+                    state['comment_type'] = None
+            elif state['comment_type'] == 'line' and char == '\n':
+                state['in_comment'] = False
+                state['comment_type'] = None
+        else:
+            if char == '-' and state['prev_char'] == '-':
+                state['in_comment'] = True
+                state['comment_type'] = 'line'
+                state['prev_char'] = None  # Reset to avoid double detection
+            elif char == '*' and state['prev_char'] == '/':
+                state['in_comment'] = True
+                state['comment_type'] = 'block'
+                state['prev_char'] = None
+
+    def _handle_tsql_comments(self, char: str, state: Dict) -> None:
+        """Handle T-SQL specific comments (same as ANSI plus GO statements)"""
+        self._handle_ansi_comments(char, state)
+
+    def _handle_mysql_comments(self, char: str, state: Dict) -> None:
+        """Handle MySQL specific comments (# style)"""
+        if char == '#' and not state['in_comment']:
+            state['in_comment'] = True
+            state['comment_type'] = 'line'
+        else:
+            self._handle_ansi_comments(char, state)
+
+    def tokenize(self, sql: str) -> Generator[Tuple[str, str], None, None]:
+        """
+        Tokenize SQL into meaningful components
+        Yields (token_type, token_value) tuples
+        """
+        token_spec = [
+            ('STRING',      r"'(''|[^'])*'"),     # Single-quoted strings
+            ('STRING',      r'"([^"]|"")*"'),     # Double-quoted strings
+            ('COMMENT',     r'--[^\n]*'),         # Line comments
+            ('COMMENT',     r'/\*.*?\*/', re.DOTALL),  # Block comments
+            ('NUMBER',      r'\d+(\.\d+)?([eE][+-]?\d+)?'),  # Numbers
+            ('KEYWORD',     r'\b(SELECT|INSERT|UPDATE[|DELETE|FROM|WHERE|'
+                            r'JOIN|INTO|CREATE|TEMP|TABLE|AS|AND|OR|'
+                            r'GROUP BY|ORDER BY|HAVING|LIMIT)\b', re.IGNORECASE),
+            ('IDENTIFIER',  r'[a-zA-Z_][a-zA-Z0-9_#@$]*'),  # Identifiers
+            ('OPERATOR',    r'[+\-*/%=<>!~&|^]'),  # Operators
+            ('PAREN',       r'[()]'),              # Parentheses
+            ('BRACKET',     r'[\[\]]'),            # Brackets
+            ('SEMICOLON',   r';'),                 # Statement terminator
+            ('WHITESPACE',  r'\s+'),               # Whitespace
+        ]
+
+        tok_regex = '|'.join(
+            f'(?P<{name}>{pattern})' for name, pattern, *flags in token_spec
+        )
+        flags = re.DOTALL | re.IGNORECASE
+        for match in re.finditer(tok_regex, sql, flags):
+            kind = match.lastgroup
+            value = match.group().strip()
+            if kind == 'WHITESPACE':
+                continue
+            if kind == 'COMMENT':
+                value = value.replace('\n', ' ')
+            yield (kind, value)
+
+    def parse_identifiers(self, sql: str) -> List[str]:
+        """Extract all identifiers from SQL query"""
+        identifiers = []
+        for kind, value in self.tokenize(sql):
+            if kind == 'IDENTIFIER':
+                # Handle quoted identifiers
+                clean_value = value.strip('[]"\'`')
+                identifiers.append(clean_value)
+        return identifiers
+
+if __name__ == '__main__':
+    # Test implementation
+    logging.basicConfig(level=logging.DEBUG)
+    
+    test_sql = """
+    -- ANSI style comment
+    SELECT * FROM users WHERE name = 'John; Doe' AND age > 25;
+    
+    /* Multi-line
+       comment */
+    CREATE TEMP TABLE #temp_results AS (
+        SELECT department, AVG(salary) AS avg_salary
+        FROM employees
+        WHERE hiredate > '2020-01-01'
+        GROUP BY department
+    );
+    
+    INSERT INTO #temp_results VALUES ('HR', 65000);
+    """
+    
+    print("Testing ANSI SQL parsing:")
+    parser = SQLParser(dialect='ansi')
+    statements = parser.split_statements(test_sql)
+    for i, stmt in enumerate(statements, 1):
+        print(f"\nStatement {i}:")
+        print(stmt)
+    
+    print("\nTokens:")
+    for token in parser.tokenize(test_sql):
+        print(token)
+    
+    print("\nIdentifiers:")
+    print(parser.parse_identifiers(test_sql))
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\parsers\__init__.py
+================================================================================
+
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\conftest.py
+================================================================================
+import pytest
+from pathlib import Path
+from sql_converter import ConfigManager
+
+@pytest.fixture
+def config_manager():
+    manager = ConfigManager()
+    manager.config = {
+        'converters': ['cte'],
+        'cte_converter': {
+            'indent_spaces': 2,
+            'temp_table_patterns': ['#.*']
+        }
+    }
+    return manager
+
+@pytest.fixture
+def sample_sql_file(tmp_path):
+    test_sql = """
+    SELECT * INTO #temp FROM users;
+    SELECT name FROM #temp;
+    """
+    file_path = tmp_path / "test.sql"
+    file_path.write_text(test_sql)
+    return file_path
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\create_temp_table.sql
+================================================================================
+WITH orders_summary AS (
+  SELECT customer_id, SUM(total) AS total_spent
+  FROM orders
+  GROUP BY customer_id
+)
+SELECT * FROM orders_summary WHERE total_spent > 1000;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\multiple_temps.sql
+================================================================================
+WITH temp1 AS (
+  SELECT * FROM table1
+),
+temp2 AS (
+  SELECT * FROM table2
+)
+SELECT t1.*, t2.* FROM temp1 t1 JOIN temp2 t2 ON t1.id = t2.id;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\nested_temps.sql
+================================================================================
+WITH inner_temp AS (
+  SELECT * FROM source_table
+),
+outer_temp AS (
+  SELECT * FROM inner_temp
+)
+SELECT * FROM outer_temp;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\pattern_matching.sql
+================================================================================
+WITH tmp_users AS (
+  SELECT * FROM users
+)
+SELECT * FROM tmp_users;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\permanent_table.sql
+================================================================================
+SELECT * INTO permanent_table FROM users;
+SELECT * FROM permanent_table;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\simple_select.sql
+================================================================================
+WITH users_temp AS (
+  SELECT * FROM users
+)
+SELECT * FROM users_temp;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\special_chars.sql
+================================================================================
+WITH temp_123 AS (
+  SELECT * FROM [table-with-hyphen]
+)
+SELECT * FROM temp_123;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\tsql_brackets.sql
+================================================================================
+WITH temp AS (
+  SELECT [col1] FROM [dbo].[table]
+)
+SELECT [col1] FROM temp;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\with_comments.sql
+================================================================================
+WITH commented_temp AS (
+  SELECT * FROM users /* important table */
+)
+SELECT * FROM commented_temp;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\create_temp_table.sql
+================================================================================
+CREATE TEMP TABLE #orders_summary AS
+SELECT customer_id, SUM(total) AS total_spent
+FROM orders
+GROUP BY customer_id;
+
+SELECT * FROM #orders_summary WHERE total_spent > 1000;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\multiple_temps.sql
+================================================================================
+SELECT * INTO #temp1 FROM table1;
+SELECT * INTO #temp2 FROM table2;
+SELECT t1.*, t2.* FROM #temp1 t1 JOIN #temp2 t2 ON t1.id = t2.id;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\nested_temps.sql
+================================================================================
+SELECT * INTO #inner_temp FROM source_table;
+SELECT * INTO #outer_temp FROM #inner_temp;
+SELECT * FROM #outer_temp;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\pattern_matching.sql
+================================================================================
+SELECT * INTO #tmp_users FROM users;
+SELECT * FROM #tmp_users;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\permanent_table.sql
+================================================================================
+SELECT * INTO permanent_table FROM users;
+SELECT * FROM permanent_table;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\simple_select.sql
+================================================================================
+SELECT * INTO #users_temp FROM users;
+SELECT * FROM #users_temp;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\special_chars.sql
+================================================================================
+SELECT * INTO #temp_123 FROM [table-with-hyphen];
+SELECT * FROM #temp_123;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\tsql_brackets.sql
+================================================================================
+SELECT [col1] INTO #temp FROM [dbo].[table];
+SELECT [col1] FROM #temp;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\with_comments.sql
+================================================================================
+-- Create temp table
+SELECT * INTO #commented_temp FROM users /* important table */;
+/*
+Multi-line comment
+SELECT * INTO #ignored_temp FROM logs;
+*/
+SELECT * FROM #commented_temp;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\integration\test_cli.py
+================================================================================
+import pytest
+from click.testing import CliRunner
+from sql_converter.cli import main
+
+def test_cli_help():
+    runner = CliRunner()
+    result = runner.invoke(main, ['--help'])
+    assert result.exit_code == 0
+    assert "Input file or directory" in result.output
+
+def test_cli_file_conversion(tmp_path, sample_sql_file):
+    output_file = tmp_path / "output.sql"
+    runner = CliRunner()
+    result = runner.invoke(main, [
+        '-i', str(sample_sql_file),
+        '-o', str(output_file),
+        '-c', 'cte'
+    ])
+    assert result.exit_code == 0
+    assert output_file.exists()
+    assert "WITH temp AS" in output_file.read_text()
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\integration\test_integration.py
+================================================================================
+import pytest
+from pathlib import Path
+from sql_converter.cli import SQLConverterApp
+
+def test_full_conversion(tmp_path, config_manager):
+    input_dir = Path("tests/fixtures/input")
+    output_dir = tmp_path / "output"
+    
+    app = SQLConverterApp(
+        converters={'cte': CTEConverter()},
+        config=config_manager.config
+    )
+    app.process_directory(input_dir, output_dir, ['cte'])
+    
+    # Verify all files were converted
+    input_files = list(input_dir.glob("**/*.sql"))
+    output_files = list(output_dir.glob("**/*.sql"))
+    assert len(input_files) == len(output_files)
+    
+    # Compare with expected results
+    for input_file in input_files:
+        relative = input_file.relative_to(input_dir)
+        output_file = output_dir / relative
+        expected_file = Path("tests/fixtures/expected") / relative
+        
+        assert output_file.read_text() == expected_file.read_text()
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\unit\converters\test_cte.py
+================================================================================
+import pytest
+from sql_converter.converters.cte import CTEConverter
+
+def test_basic_cte_conversion():
+    sql = "SELECT * INTO #temp FROM users; SELECT * FROM #temp;"
+    converter = CTEConverter()
+    converted = converter.convert(sql)
+    assert "WITH temp AS" in converted
+    assert "SELECT * FROM temp" in converted
+
+def test_multiple_temp_tables():
+    sql = """
+    CREATE TEMP TABLE #table1 AS SELECT * FROM a;
+    SELECT * INTO #table2 FROM b;
+    SELECT * FROM #table1 JOIN #table2;
+    """
+    converter = CTEConverter()
+    converted = converter.convert(sql)
+    assert "table1 AS" in converted
+    assert "table2 AS" in converted
+    assert "FROM table1 JOIN table2" in converted
+
+def test_temp_table_pattern_matching():
+    sql = "SELECT * INTO #my_temp FROM table;"
+    converter = CTEConverter(config={'temp_table_patterns': ['#my_*']})
+    converted = converter.convert(sql)
+    assert "my_temp AS" in converted
+
+def test_nested_temp_tables():
+    sql = """
+    SELECT * INTO #outer FROM (
+        SELECT * FROM #inner
+    );
+    """
+    converter = CTEConverter()
+    converted = converter.convert(sql)
+    assert "WITH outer AS" in converted
+    assert "inner AS" in converted
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\unit\parsers\test_sql_parser.py
+================================================================================
+import pytest
+from sql_converter.parsers.sql_parser import SQLParser
+
+def test_statement_splitting():
+    sql = """
+    SELECT * FROM table; 
+    -- Comment
+    INSERT INTO #temp VALUES (1);
+    """
+    parser = SQLParser()
+    statements = parser.split_statements(sql)
+    assert len(statements) == 2
+    assert "SELECT" in statements[0]
+    assert "INSERT" in statements[1]
+
+def test_tsql_bracket_handling():
+    sql = "SELECT [col.name] FROM [dbo.table];"
+    parser = SQLParser(dialect='tsql')
+    statements = parser.split_statements(sql)
+    assert len(statements) == 1
+    assert "[col.name]" in statements[0]
+
+def test_comment_handling():
+    sql = """
+    /* Multi-line 
+       comment */
+    SELECT 1; -- Line comment
+    """
+    parser = SQLParser()
+    statements = parser.split_statements(sql)
+    assert len(statements) == 1
+    assert "SELECT" in statements[0]
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\unit\utils\test_config.py
+================================================================================
+import pytest
+from unittest.mock import mock_open, patch
+from sql_converter.utils.config import ConfigManager
+
+def test_config_loading():
+    yaml_content = """
+    converters:
+      - cte
+      - pivot
+    logging:
+      level: DEBUG
+    """
+    with patch("builtins.open", mock_open(read_data=yaml_content)):
+        manager = ConfigManager()
+        manager.load_config()
+        assert 'pivot' in manager.get('converters')
+        assert manager.get('logging.level') == 'DEBUG'
+
+def test_config_priority():
+    manager = ConfigManager()
+    manager.config = {'converters': ['base']}
+    manager.update_from_cli({'convert': ['cte']})
+    assert manager.config['converters'] == ['cte']
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\utils\config.py
+================================================================================
+# sql_converter/utils/config.py
+import os
+import logging
+from pathlib import Path
+from typing import Dict, Any, Optional
+import yaml
+from dotenv import load_dotenv
+
+class ConfigManager:
+    def __init__(self):
+        self.config: Dict[str, Any] = {}
+        self.logger = logging.getLogger(__name__)
+        load_dotenv()  # Load environment variables
+        
+        # Default search paths for config files
+        self.config_paths = [
+            Path("sql_converter/config/default.yml"),
+            Path(os.getenv("SQL_CONVERTER_CONFIG", "")),
+            Path("~/.config/sql_converter/config.yml").expanduser(),
+            Path("./sql_converter.yml"),
+        ]
+
+    def load_config(self) -> None:
+        """Load configuration from first found valid config file"""
+        for path in self.config_paths:
+            if path and path.exists() and path.is_file():  # Add is_file() check
+                try:
+                    with open(path, 'r') as f:
+                        self.config = yaml.safe_load(f)
+                    self.logger.info(f"Loaded config from {path}")
+                    return
+                except Exception as e:
+                    self.logger.warning(f"Failed to load config from {path}: {str(e)}")
+        
+        self.logger.warning("No valid config file found, using defaults")
+        self.config = {
+            'converters': ['cte'],
+            'logging': {'level': 'INFO', 'file': 'conversions.log'}
+        }
+
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
+        """Get config value using dot notation (e.g. 'logging.level')"""
+        keys = key.split('.')
+        value = self.config
+        try:
+            for k in keys:
+                value = value[k]
+            return value
+        except (KeyError, TypeError):
+            return default
+
+    def update_from_cli(self, cli_args: Dict[str, Any]) -> None:
+        """Merge CLI arguments into config"""
+        if 'convert' in cli_args:
+            self.config['converters'] = cli_args['convert']
+        if 'input' in cli_args:
+            self.config['input_path'] = cli_args['input']
+        if 'output' in cli_args:
+            self.config['output_path'] = cli_args['output']
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\utils\logging.py
+================================================================================
+# sql_converter/utils/logging.py
+import logging
+from typing import Optional
+
+def setup_logging(level: str = 'INFO', log_file: Optional[str] = None) -> None:
+    """Configure logging system"""
+    level = getattr(logging, level.upper(), logging.INFO)
+    
+    handlers = [
+        logging.StreamHandler()
+    ]
+    
+    if log_file:
+        handlers.append(logging.FileHandler(log_file))
+    
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=handlers
+    )
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\utils\__init__.py
+================================================================================
+
+
+################################################################################
+

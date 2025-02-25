@@ -1,0 +1,19 @@
+=== Starting Conversion ===
+Split into 2 statements
+Reconstructed query for distinct_deal_measure:
+SELECT DISTINCT 
+        fdm.setsk, 
+        fdm.dealsk, 
+        buh.busunithlevel02name, 
+        re.glreportingentitycode, 
+        drea.glreportingentitycode AS affglreportingentitycode, 
+        dmt.measuretypecode, 
+        gla.glaccountcode, 
+        dpt.productgroup
+FROM miris.dimdealset dds
+    INNER JOIN (
+        SELECT 
+            setsk, dealsk, glbusinessunitsk, measuretypesk, glaccountsk, glreportingentitysk 
+        FROM miris.factdealmeasure fdm 
+        WHERE setsk = 15658
+    ...

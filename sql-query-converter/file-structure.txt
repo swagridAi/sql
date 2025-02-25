@@ -1,0 +1,54 @@
+sql-query-converter/
+├── sql_converter/
+│   ├── __init__.py              # Package initialization
+│   │
+│   ├── cli.py                   # Command-line interface (entry point)
+│   │                            # Depends on: converters, utils.config, utils.logging
+│   │
+│   ├── converters/              # Conversion logic implementations
+│   │   ├── __init__.py          # Exports converter classes
+│   │   ├── base.py              # BaseConverter (abstract class)
+│   │   ├── cte.py               # CTEConverter (temp table → CTE)
+│   │   └── pivot.py             # PivotConverter (future implementation)
+│   │
+│   ├── parsers/                 # SQL parsing components
+│   │   ├── __init__.py          # Exports parser classes
+│   │   ├── sql_parser.py        # SQLParser (statement splitting/tokenization)
+│   │   └── tokenizer.py         # Advanced tokenization (if needed)
+│   │
+│   ├── utils/                   # Shared utilities
+│   │   ├── __init__.py          # Utility exports
+│   │   ├── config.py            # ConfigManager (configuration handling)
+│   │   ├── logging.py           # Logging setup
+│   │   ├── formatting.py        # SQL pretty-printing
+│   │   └── helpers.py           # Generic helper functions
+│   │
+│   └── exceptions.py            # Custom exceptions
+│
+├── tests/                       # Unit tests
+│   ├── __init__.py              # Test package
+│   ├── test_cte_converter.py    # CTE converter tests
+│   ├── test_sql_parser.py       # Parser tests
+│   └── fixtures/                # Test SQL files
+│       ├── input/               # Sample input SQL
+│       └── expected/            # Expected output SQL
+│
+├── docs/                        # Documentation
+│   ├── usage.md                 # User guide
+│   └── api.md                   # Developer documentation
+│
+├── examples/                    # Usage examples
+│   ├── basic_usage.py           # Simple API example
+│   └── sample_queries/          # Example SQL files
+│
+├── scripts/                     # Maintenance scripts
+│   ├── benchmark.py             # Performance testing
+│   └── validate_config.py       # Config validation
+│
+├── config/                      # Default configurations
+│   └── default.yml              # Base configuration
+│
+├── .gitignore                   # Version control ignore
+├── pyproject.toml               # Build configuration
+├── README.md                    # Project overview
+└── requirements.txt             # Dependencies
