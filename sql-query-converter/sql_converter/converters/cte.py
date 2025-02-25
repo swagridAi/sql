@@ -152,20 +152,22 @@ class CTEConverter(BaseConverter):
         """
         Create default CTE definitions for temp tables that are referenced but not defined.
         """
+        # Create a set of already defined CTE names
+        defined_ctes = {name for name, _ in self.cte_definitions}
+        
         for temp_name in self.referenced_temps:
-            # Skip temp tables that already have a definition - check by CTE name not by temp name
+            # Get the clean CTE name for this temp table
             cte_name = self.temp_table_map[temp_name]
-            if any(name == cte_name for name, _ in self.cte_definitions):
-                continue
-                
-            # Create a placeholder CTE that selects from a dummy source
-            self.logger.debug(f"Creating placeholder CTE for referenced temp table: {temp_name}")
             
-            # Add a placeholder definition
-            self.cte_definitions.append((
-                cte_name,
-                f"SELECT * FROM (SELECT 1 as placeholder) as dummy_source"
-            ))
+            # Only add a placeholder if this CTE doesn't already exist
+            if cte_name not in defined_ctes:
+                self.logger.debug(f"Creating placeholder CTE for referenced temp table: {temp_name}")
+                self.cte_definitions.append((
+                    cte_name,
+                    f"SELECT * FROM (SELECT 1 as placeholder) as dummy_source"
+                ))
+                # Add to defined set to prevent duplicates
+                defined_ctes.add(cte_name)
     
     def _reset_state(self) -> None:
         """Reset converter state between conversions."""
@@ -494,37 +496,39 @@ class CTEConverter(BaseConverter):
         
         Returns:
             Final SQL with CTEs
-            
-        Raises:
-            ConverterError: When building final query fails
         """
         try:
             if not self.cte_definitions:
                 return ';\n'.join(query.rstrip(';') for query in self.main_queries)
 
-            # Format each CTE definition
-            cte_clauses = []
+            # Remove any duplicate CTE definitions by name
+            unique_ctes = {}
             for name, query in self.cte_definitions:
+                unique_ctes[name] = query
+            
+            # Format each unique CTE definition
+            cte_clauses = []
+            for name, query in unique_ctes.items():
                 # Ensure query doesn't have trailing semicolons
                 clean_query = query.rstrip(';')
                 cte_clauses.append(f"{name} AS (\n{self._indent(clean_query)}\n)")
             
-            # Format each main query - ensure they don't have trailing semicolons except the last one
+            # Format each main query 
             formatted_main_queries = []
             for i, query in enumerate(self.main_queries):
                 # Remove any trailing semicolons
                 clean_query = query.rstrip(';')
-                # Add back semicolon for all but potentially the last query
+                # Add back semicolon if needed
                 if i < len(self.main_queries) - 1:
                     formatted_main_queries.append(f"{clean_query};")
                 else:
-                    # For the last query, keep it as is (without trailing semicolon)
                     formatted_main_queries.append(clean_query)
             
             # Build the final query
-            return f"WITH {',\n'.join(cte_clauses)}\n{' '.join(formatted_main_queries)}"
+            joined_queries = " ".join(formatted_main_queries)
+            return f"WITH {',\n'.join(cte_clauses)}\n{joined_queries}"
         except Exception as e:
-            raise ConverterError(f"Error building final query: {str(e)}") from e
+            raise ConverterError(f"Error building final query: {str(e)}")
 
     def _indent(self, sql: str) -> str:
         """
