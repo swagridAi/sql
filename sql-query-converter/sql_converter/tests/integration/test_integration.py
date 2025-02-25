@@ -1,16 +1,14 @@
+import pytest
+from pathlib import Path
+from sql_converter.cli import SQLConverterApp
+from sql_converter.converters.cte import CTEConverter  # Add missing import
+from sql_converter.utils.config import ConfigManager
+
 def test_full_conversion(tmp_path, config_manager):
-    # Determine the absolute path to the project's fixture directories
-    current_path = Path(__file__).parent
-    project_root = current_path.parent.parent.parent.parent
-    
-    input_dir = project_root / "sql_converter" / "tests" / "fixtures" / "input"
+    # Fix the path to match actual project structure
+    input_dir = Path("sql-query-converter/sql_converter/tests/fixtures/input")
     output_dir = tmp_path / "output"
     output_dir.mkdir(exist_ok=True)
-    
-    expected_dir = project_root / "sql_converter" / "tests" / "fixtures" / "expected"
-    
-    # Verify the input directory exists
-    assert input_dir.exists(), f"Input directory not found: {input_dir}"
     
     app = SQLConverterApp(
         converters={'cte': CTEConverter()},
@@ -24,15 +22,12 @@ def test_full_conversion(tmp_path, config_manager):
     assert len(output_files) > 0
     
     # Compare with expected results but normalize whitespace
+    expected_dir = Path("sql-query-converter/sql_converter/tests/fixtures/expected")
     for input_file in input_files:
         relative = input_file.relative_to(input_dir)
         output_file = output_dir / relative
         expected_file = expected_dir / relative
         
-        # Skip problem files for now to get tests passing
-        if "create_temp_table" in str(input_file):
-            continue
-            
         if output_file.exists() and expected_file.exists():
             # Normalize whitespace for comparison
             import re
