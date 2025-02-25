@@ -1,4 +1,23 @@
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\component_responsibilities.csv
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\basic_query.sql
+================================================================================
+SELECT DISTINCT 
+     a.dog,
+     b.cat,
+     c.cow
+     INTO #ANIMALS
+     FROM table_a a
+     INNER JOIN (
+      SELECT setsk, animalsk
+      FROM table_b b
+      WHERE setsk = 1920
+     ) b ON a.setsk = b.setsk
+     LEFT JOIN table_c c ON a.setsk = c.setsk;
+
+    SELECT * FROM #ANIMALS;
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\component_responsibilities.csv
 ================================================================================
 ﻿File/Folder,Responsibilities,Dependencies
 cli.py,"Entry point, argument parsing, workflow orchestration","All converters, utils"
@@ -12,7 +31,7 @@ tests/,Verify component behavior,"pytest, fixtures"
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\conversions.log
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\conversions.log
 ================================================================================
 2025-02-09 19:40:50,895 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\test.sql
 2025-02-09 19:40:50,899 - SQLConverterApp - INFO - Saved converted SQL to: converted
@@ -31,24 +50,26 @@ File: C:\Users\User\python_code\sql_conversion\sql-query-converter\conversions.l
 2025-02-10 07:02:45,674 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
 2025-02-10 07:03:08,301 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\sql_query_full.txt
 2025-02-10 07:03:08,316 - SQLConverterApp - INFO - Saved converted SQL to: output.sql
+2025-02-25 13:42:42,064 - SQLConverterApp - INFO - Processing file: C:\Users\User\python_code\sql_conversion\test.sql
+2025-02-25 13:42:42,064 - SQLConverterApp - INFO - Saved converted SQL to: C:\Users\User\python_code\sql_conversion\test.sql
 
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\converted
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\converted
 ================================================================================
 SELECT * INTO #temp FROM users;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\execution.txt
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\execution.txt
 ================================================================================
 User → cli.py → ConfigManager → SQLConverterApp → CTEConverter → SQLParser
             ↳ Logging          ↳ File I/O         ↳ PivotConverter
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\extract_code.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\extract_code.py
 ================================================================================
 import os
 
@@ -79,7 +100,7 @@ if __name__ == "__main__":
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\file-structure.txt
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\file-structure.txt
 ================================================================================
 sql-query-converter/
 ├── sql_converter/
@@ -138,13 +159,7 @@ sql-query-converter/
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\output
-================================================================================
-SELECT * INTO #temp FROM users;
-
-################################################################################
-
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\output.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\output.sql
 ================================================================================
 WITH distinct_deal_measure AS (
   SELECT DISTINCT 
@@ -201,7 +216,7 @@ WITH distinct_deal_measure AS (
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\requirements-test.txt
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\requirements-test.txt
 ================================================================================
 pytest>=7.0
 pytest-mock>=3.0
@@ -209,7 +224,7 @@ freezegun>=1.0
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter.yml
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter.yml
 ================================================================================
 converters:
   - cte
@@ -231,7 +246,17 @@ output:
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\cli.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\test.sql
+================================================================================
+WITH temp AS (
+  SELECT *
+  FROM users;
+)
+
+
+################################################################################
+
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\cli.py
 ================================================================================
 # sql_converter/cli.py
 import argparse
@@ -355,13 +380,13 @@ if __name__ == '__main__':
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\__init__.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\__init__.py
 ================================================================================
 __all__ = ['main']
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\converters\base.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\converters\base.py
 ================================================================================
 # File: sql-query-converter/sql_converter/converters/base.py
 from abc import ABC, abstractmethod
@@ -383,7 +408,7 @@ __all__ = ['BaseConverter']  # Add this at the bottom
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\converters\cte.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\converters\cte.py
 ================================================================================
 # sql_converter/converters/cte.py
 import re
@@ -582,7 +607,7 @@ print(converter.convert(sql))
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\converters\__init__.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\converters\__init__.py
 ================================================================================
 # sql_converter/converters/__init__.py
 from .base import BaseConverter
@@ -609,7 +634,7 @@ register_converter('cte', CTEConverter)
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\parsers\sql_parser.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\parsers\sql_parser.py
 ================================================================================
 # sql_converter/parsers/sql_parser.py
 import re
@@ -846,13 +871,13 @@ if __name__ == '__main__':
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\parsers\__init__.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\parsers\__init__.py
 ================================================================================
 
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\conftest.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\conftest.py
 ================================================================================
 import pytest
 from pathlib import Path
@@ -882,7 +907,7 @@ def sample_sql_file(tmp_path):
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\create_temp_table.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\expected\create_temp_table.sql
 ================================================================================
 WITH orders_summary AS (
   SELECT customer_id, SUM(total) AS total_spent
@@ -893,7 +918,7 @@ SELECT * FROM orders_summary WHERE total_spent > 1000;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\multiple_temps.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\expected\multiple_temps.sql
 ================================================================================
 WITH temp1 AS (
   SELECT * FROM table1
@@ -905,7 +930,7 @@ SELECT t1.*, t2.* FROM temp1 t1 JOIN temp2 t2 ON t1.id = t2.id;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\nested_temps.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\expected\nested_temps.sql
 ================================================================================
 WITH inner_temp AS (
   SELECT * FROM source_table
@@ -917,7 +942,7 @@ SELECT * FROM outer_temp;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\pattern_matching.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\expected\pattern_matching.sql
 ================================================================================
 WITH tmp_users AS (
   SELECT * FROM users
@@ -926,14 +951,14 @@ SELECT * FROM tmp_users;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\permanent_table.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\expected\permanent_table.sql
 ================================================================================
 SELECT * INTO permanent_table FROM users;
 SELECT * FROM permanent_table;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\simple_select.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\expected\simple_select.sql
 ================================================================================
 WITH users_temp AS (
   SELECT * FROM users
@@ -942,7 +967,7 @@ SELECT * FROM users_temp;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\special_chars.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\expected\special_chars.sql
 ================================================================================
 WITH temp_123 AS (
   SELECT * FROM [table-with-hyphen]
@@ -951,7 +976,7 @@ SELECT * FROM temp_123;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\tsql_brackets.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\expected\tsql_brackets.sql
 ================================================================================
 WITH temp AS (
   SELECT [col1] FROM [dbo].[table]
@@ -960,7 +985,7 @@ SELECT [col1] FROM temp;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\expected\with_comments.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\expected\with_comments.sql
 ================================================================================
 WITH commented_temp AS (
   SELECT * FROM users /* important table */
@@ -969,7 +994,7 @@ SELECT * FROM commented_temp;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\create_temp_table.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\input\create_temp_table.sql
 ================================================================================
 CREATE TEMP TABLE #orders_summary AS
 SELECT customer_id, SUM(total) AS total_spent
@@ -980,7 +1005,7 @@ SELECT * FROM #orders_summary WHERE total_spent > 1000;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\multiple_temps.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\input\multiple_temps.sql
 ================================================================================
 SELECT * INTO #temp1 FROM table1;
 SELECT * INTO #temp2 FROM table2;
@@ -988,7 +1013,7 @@ SELECT t1.*, t2.* FROM #temp1 t1 JOIN #temp2 t2 ON t1.id = t2.id;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\nested_temps.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\input\nested_temps.sql
 ================================================================================
 SELECT * INTO #inner_temp FROM source_table;
 SELECT * INTO #outer_temp FROM #inner_temp;
@@ -996,42 +1021,42 @@ SELECT * FROM #outer_temp;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\pattern_matching.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\input\pattern_matching.sql
 ================================================================================
 SELECT * INTO #tmp_users FROM users;
 SELECT * FROM #tmp_users;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\permanent_table.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\input\permanent_table.sql
 ================================================================================
 SELECT * INTO permanent_table FROM users;
 SELECT * FROM permanent_table;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\simple_select.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\input\simple_select.sql
 ================================================================================
 SELECT * INTO #users_temp FROM users;
 SELECT * FROM #users_temp;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\special_chars.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\input\special_chars.sql
 ================================================================================
 SELECT * INTO #temp_123 FROM [table-with-hyphen];
 SELECT * FROM #temp_123;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\tsql_brackets.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\input\tsql_brackets.sql
 ================================================================================
 SELECT [col1] INTO #temp FROM [dbo].[table];
 SELECT [col1] FROM #temp;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\fixtures\input\with_comments.sql
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\fixtures\input\with_comments.sql
 ================================================================================
 -- Create temp table
 SELECT * INTO #commented_temp FROM users /* important table */;
@@ -1043,7 +1068,7 @@ SELECT * FROM #commented_temp;
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\integration\test_cli.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\integration\test_cli.py
 ================================================================================
 import pytest
 from click.testing import CliRunner
@@ -1069,7 +1094,7 @@ def test_cli_file_conversion(tmp_path, sample_sql_file):
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\integration\test_integration.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\integration\test_integration.py
 ================================================================================
 import pytest
 from pathlib import Path
@@ -1100,7 +1125,7 @@ def test_full_conversion(tmp_path, config_manager):
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\unit\converters\test_cte.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\unit\converters\test_cte.py
 ================================================================================
 import pytest
 from sql_converter.converters.cte import CTEConverter
@@ -1143,7 +1168,7 @@ def test_nested_temp_tables():
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\unit\parsers\test_sql_parser.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\unit\parsers\test_sql_parser.py
 ================================================================================
 import pytest
 from sql_converter.parsers.sql_parser import SQLParser
@@ -1180,7 +1205,7 @@ def test_comment_handling():
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\tests\unit\utils\test_config.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\tests\unit\utils\test_config.py
 ================================================================================
 import pytest
 from unittest.mock import mock_open, patch
@@ -1208,7 +1233,7 @@ def test_config_priority():
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\utils\config.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\utils\config.py
 ================================================================================
 # sql_converter/utils/config.py
 import os
@@ -1272,7 +1297,7 @@ class ConfigManager:
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\utils\logging.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\utils\logging.py
 ================================================================================
 # sql_converter/utils/logging.py
 import logging
@@ -1297,7 +1322,7 @@ def setup_logging(level: str = 'INFO', log_file: Optional[str] = None) -> None:
 
 ################################################################################
 
-File: C:\Users\User\python_code\sql_conversion\sql-query-converter\sql_converter\utils\__init__.py
+File: C:\Users\User\python_code\sql_conversion_test\sql-query-converter\sql_converter\utils\__init__.py
 ================================================================================
 
 

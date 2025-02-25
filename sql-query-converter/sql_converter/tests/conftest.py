@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from sql_converter import ConfigManager
+from sql_converter.utils.config import ConfigManager
 
 @pytest.fixture
 def config_manager():

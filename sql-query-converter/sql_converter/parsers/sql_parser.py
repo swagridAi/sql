@@ -14,6 +14,18 @@ class SQLParser:
             'mysql': self._handle_mysql_comments,
         }
 
+    def validate_sql(self, sql: str) -> None:
+        """Performs basic validation on SQL syntax"""
+        # This is a simplified check - you may want more robust validation
+        if "FROM WHERE" in sql.upper():
+            raise ValueError("Invalid SQL syntax: FROM clause missing table name")
+        
+        # Check for unbalanced parentheses
+        if sql.count('(') != sql.count(')'):
+            raise ValueError("Invalid SQL syntax: Unbalanced parentheses")
+            
+        # Add more validation rules as needed
+
     def split_statements(self, sql: str) -> List[str]:
         """
         Split SQL into individual statements while handling:
@@ -82,7 +94,7 @@ class SQLParser:
                 if state['in_string'] and char == state['string_char']:
                     state['in_string'] = False
                     state['string_char'] = None
-                else:
+                elif not state['in_string']:
                     state['in_string'] = True
                     state['string_char'] = char
             elif char == '\\' and state['in_string']:
@@ -90,7 +102,7 @@ class SQLParser:
                 return
 
         # Handle brackets (TSQL)
-        if self.dialect == 'tsql' and not state['in_comment']:
+        if self.dialect == 'tsql' and not state['in_comment'] and not state['in_string']:
             if char == '[':
                 state['bracket_depth'] += 1
             elif char == ']':
@@ -108,8 +120,9 @@ class SQLParser:
     def _is_statement_end(self, char: str, state: Dict, prev_state: Dict) -> bool:
         """Determine if current character ends a statement"""
         # Handle T-SQL GO statements
-        if self.dialect == 'tsql' and state['prev_char'] == 'G' and char == 'O':
-            return True
+        if self.dialect == 'tsql' and not state['in_string'] and not state['in_comment']:
+            if state['prev_char'] == 'G' and char == 'O':
+                return True
         
         # Handle standard semicolon termination
         return (
@@ -123,6 +136,7 @@ class SQLParser:
     def _handle_ansi_comments(self, char: str, state: Dict) -> None:
         """Handle standard SQL comments (- and /* */ style)"""
         if state['in_comment']:
+            # Handle end of comments
             if state['comment_type'] == 'block':
                 if state['prev_char'] == '*' and char == '/':
                     state['in_comment'] = False
@@ -130,7 +144,8 @@ class SQLParser:
             elif state['comment_type'] == 'line' and char == '\n':
                 state['in_comment'] = False
                 state['comment_type'] = None
-        else:
+        elif not state['in_string']:  # Only check for comments when not in a string
+            # Handle start of comments
             if char == '-' and state['prev_char'] == '-':
                 state['in_comment'] = True
                 state['comment_type'] = 'line'
@@ -146,7 +161,7 @@ class SQLParser:
 
     def _handle_mysql_comments(self, char: str, state: Dict) -> None:
         """Handle MySQL specific comments (# style)"""
-        if char == '#' and not state['in_comment']:
+        if not state['in_comment'] and not state['in_string'] and char == '#':
             state['in_comment'] = True
             state['comment_type'] = 'line'
         else:
@@ -163,7 +178,7 @@ class SQLParser:
             ('COMMENT',     r'--[^\n]*'),         # Line comments
             ('COMMENT',     r'/\*.*?\*/', re.DOTALL),  # Block comments
             ('NUMBER',      r'\d+(\.\d+)?([eE][+-]?\d+)?'),  # Numbers
-            ('KEYWORD',     r'\b(SELECT|INSERT|UPDATE[|DELETE|FROM|WHERE|'
+            ('KEYWORD',     r'\b(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|'
                             r'JOIN|INTO|CREATE|TEMP|TABLE|AS|AND|OR|'
                             r'GROUP BY|ORDER BY|HAVING|LIMIT)\b', re.IGNORECASE),
             ('IDENTIFIER',  r'[a-zA-Z_][a-zA-Z0-9_#@$]*'),  # Identifiers

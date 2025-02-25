@@ -158,6 +158,7 @@ class CTEConverter(BaseConverter):
         """Replace temp references in final queries"""
         processed = stmt
         for temp, cte in self.temp_table_map.items():
+            # Use word boundary regex to match whole tables
             processed = re.sub(
                 rf'\b{re.escape(temp)}\b', 
                 cte, 
