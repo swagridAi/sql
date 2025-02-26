@@ -55,4 +55,9 @@ def test_full_conversion(tmp_path, config_manager):
             import re
             output_text = re.sub(r'\s+', ' ', output_file.read_text().strip())
             expected_text = re.sub(r'\s+', ' ', expected_file.read_text().strip())
+            # In test_integration.py, add debugging before assertion:
+            print(f"Input file: {input_file}")
+            print(f"File content: {input_file.read_text()}")
+            print(f"Output: {output_text}")
+            print(f"Expected: {expected_text}")
             assert output_text == expected_text

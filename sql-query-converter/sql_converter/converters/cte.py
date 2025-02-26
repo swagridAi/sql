@@ -480,22 +480,23 @@ class CTEConverter(BaseConverter):
         return "\n".join(transformed_statements)  # Removed the rstrip(';
 
     def _assemble_final_query(self, ctes: List[Tuple[str, str]], main_query: str) -> str:
-        """
-        Assemble the final query with CTEs and main query.
-        
-        Args:
-            ctes: List of (cte_name, definition) tuples
-            main_query: The main query string
-            
-        Returns:
-            Complete SQL with CTEs
-        """
         if not ctes:
             return main_query
         
+        # Sort CTEs by original appearance order
+        original_order = {name: idx for idx, name in enumerate(self.temp_table_order)}
+        
+        # Create a mapping from CTE name to original temp table name
+        cte_to_temp = {}
+        for temp_name, info in self.temp_tables.items():
+            cte_to_temp[info['cte_name']] = temp_name
+        
+        # Sort the CTEs by the original order of their corresponding temp tables
+        sorted_ctes = sorted(ctes, key=lambda x: original_order.get(cte_to_temp.get(x[0], ''), float('inf')))
+        
         # Format each CTE with proper indentation
         cte_clauses = []
-        for name, definition in ctes:
+        for name, definition in sorted_ctes:
             # Clean and indent the definition
             clean_def = definition.rstrip(';')
             indented_def = self._indent(clean_def)
