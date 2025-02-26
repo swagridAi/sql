@@ -1,3 +1,9 @@
+"""
+SQL Converter CLI - Entry point for command-line SQL conversion tool.
+
+This module provides the command-line interface and application orchestration
+for converting SQL using AST-based parsing and transformation.
+"""
 import os
 import argparse
 import logging
@@ -10,15 +16,16 @@ from sql_converter.converters import get_converter
 from sql_converter.utils.config import ConfigManager
 from sql_converter.utils.logging import setup_logging
 from sql_converter.converters.base import BaseConverter
+from sql_converter.parsers.sql_parser import SQLParser
 from sql_converter.exceptions import (
     SQLConverterError, ConfigError, ValidationError, 
-    SQLSyntaxError, FileError, ConverterError
+    SQLSyntaxError, FileError, ConverterError, ParserError
 )
 
 
 class SQLConverterApp:
     """
-    Main application for SQL conversion, handling workflow orchestration.
+    Main application for SQL conversion using AST-based parsing and transformation.
     """
     
     def __init__(self, converters: Dict[str, BaseConverter], config: Dict[str, Any]):
@@ -39,13 +46,20 @@ class SQLConverterApp:
         self.config = config
         self.logger = logging.getLogger(self.__class__.__name__)
         
+        # Initialize the parser with configured dialect
+        dialect = config.get('parser', {}).get('dialect', 'ansi')
+        self.parser = SQLParser(dialect=dialect)
+        
         # Track processed files for reporting
         self.processed_files: Set[Path] = set()
         self.failed_files: Set[Tuple[Path, str]] = set()  # (path, error_message)
+        
+        # Configure optimization level
+        self.optimization_level = config.get('parser', {}).get('optimization_level', 0)
 
     def process_file(self, input_path: Path, output_path: Path, conversions: List[str]) -> None:
         """
-        Process a single SQL file.
+        Process a single SQL file using AST-based parsing and transformation.
         
         Args:
             input_path: Path to input SQL file
@@ -56,6 +70,7 @@ class SQLConverterApp:
             FileError: When file operations fail
             ConverterError: When conversion fails
             ValidationError: When SQL validation fails
+            ParserError: When SQL parsing fails
         """
         if not input_path.exists():
             raise FileError(f"Input file does not exist", filepath=str(input_path))
@@ -93,8 +108,19 @@ class SQLConverterApp:
                 raise FileError(f"Failed to read file: {str(e)}", 
                                filepath=str(input_path)) from e
 
-            # Apply conversions
-            converted_sql = sql
+            # Parse SQL into AST expressions - NEW step with AST parser
+            try:
+                expressions = self.parser.parse(sql)
+                self.logger.debug(f"Successfully parsed {len(expressions)} statements from {input_path}")
+            except SQLSyntaxError as e:
+                self.logger.error(f"SQL syntax error in {input_path}: {e}")
+                raise
+            except ParserError as e:
+                self.logger.error(f"Parser error in {input_path}: {e}")
+                raise
+
+            # Apply conversions - Now working with AST expressions
+            converted_expressions = expressions
             for conversion in conversions:
                 if conversion not in self.converters:
                     raise ConverterError(f"Unknown converter: {conversion}")
@@ -104,15 +130,23 @@ class SQLConverterApp:
                 
                 # Apply the conversion with proper error handling
                 try:
-                    converted_sql = converter.convert(converted_sql)
+                    # Convert AST expressions - converter interface now accepts and returns AST
+                    converted_expressions = converter.convert_ast(converted_expressions, self.parser)
                 except Exception as e:
                     # Preserve error type if it's a known one, otherwise wrap
-                    if isinstance(e, (SQLSyntaxError, ValidationError, ConverterError)):
+                    if isinstance(e, (SQLSyntaxError, ValidationError, ConverterError, ParserError)):
                         raise
                     raise ConverterError(
                         f"Error in {conversion} converter: {str(e)}",
                         source=input_path.name
                     ) from e
+
+            # Convert AST expressions back to SQL
+            try:
+                converted_sql = "\n".join([self.parser.to_sql(expr) for expr in converted_expressions])
+                self.logger.debug(f"Successfully converted AST back to SQL for {input_path}")
+            except Exception as e:
+                raise ConverterError(f"Error converting AST to SQL: {str(e)}")
 
             # Write output file with proper error handling
             try:
@@ -232,7 +266,7 @@ def main():
             logger.error(f"Failed to configure logging: {e}")
             # Continue with basic logging
 
-        # Parse command line arguments with better error handling
+        # Parse command line arguments
         parser = argparse.ArgumentParser(
             description='SQL Query Conversion Tool',
             formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -273,6 +307,24 @@ def main():
                 help='Conversion operations to apply (failed to load converter list)'
             )
 
+        # NEW: Add SQL dialect selection
+        available_dialects = ['ansi', 'tsql', 'mysql', 'postgresql', 'oracle', 'snowflake', 'redshift']
+        parser.add_argument(
+            '-d', '--dialect',
+            choices=available_dialects,
+            default=config_manager.get('parser.dialect', 'ansi'),
+            help='SQL dialect to use for parsing'
+        )
+        
+        # NEW: Add optimization level
+        parser.add_argument(
+            '--optimize',
+            type=int,
+            choices=[0, 1, 2],
+            default=config_manager.get('parser.optimization_level', 0),
+            help='AST optimization level (0=none, 1=basic, 2=aggressive)'
+        )
+
         # Add verbosity control
         parser.add_argument(
             '-v', '--verbose',
@@ -296,6 +348,12 @@ def main():
 
         # Update config with CLI arguments
         config_manager.update_from_cli(vars(args))
+        
+        # Add parser-specific config if not already present
+        if 'parser' not in config_manager.config:
+            config_manager.config['parser'] = {}
+        config_manager.config['parser']['dialect'] = args.dialect
+        config_manager.config['parser']['optimization_level'] = args.optimize
 
         # Initialize converters with config
         try:
@@ -354,7 +412,18 @@ def main():
             logger.error(f"Converter error: {e}")
             sys.exit(1)
         except SQLSyntaxError as e:
-            logger.error(f"SQL syntax error: {e}")
+            # Provide more specific error details with line numbers
+            error_msg = f"SQL syntax error"
+            if getattr(e, 'line', None):
+                error_msg += f" at line {e.line}"
+            if getattr(e, 'position', None):
+                error_msg += f", position {e.position}"
+            error_msg += f": {e.message}"
+            
+            logger.error(error_msg)
+            sys.exit(1)
+        except ParserError as e:
+            logger.error(f"Parser error: {e}")
             sys.exit(1)
         except Exception as e:
             logger.error(f"Unexpected error: {e}")

@@ -1,40 +1,27 @@
-import re
+"""
+AST-based CTEConverter implementation for converting temporary tables to CTEs.
+
+This module handles the transformation of SQL queries with temporary tables
+into equivalent queries using Common Table Expressions (CTEs) by manipulating
+the Abstract Syntax Tree rather than using regex pattern matching.
+"""
 import logging
-from typing import List, Tuple, Dict, Optional, Any, Match, Pattern, Set
+import re
+from typing import List, Dict, Any, Optional, Set, Tuple, Union
+
+import sqlglot
+from sqlglot import exp
 
 from sql_converter.converters.base import BaseConverter
 from sql_converter.parsers.sql_parser import SQLParser
-from sql_converter.exceptions import ConverterError, ValidationError, SQLSyntaxError, ConfigError
+from sql_converter.exceptions import ConverterError, ValidationError, ConfigError
 
 
 class CTEConverter(BaseConverter):
-    """Converts SQL queries with temporary tables to Common Table Expressions (CTEs)."""
-    
-    # Precompile regex patterns for performance
-    _SELECT_INTO_PATTERN = re.compile(
-        r'^\s*SELECT\s+(?P<select_clause>.+?)\s+INTO\s+(?P<table>\S+)\s+(?P<remainder>FROM.*)',
-        re.IGNORECASE | re.DOTALL
-    )
-    
-    _CREATE_TEMP_AS_PATTERN1 = re.compile(
-        r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)\s+AS\s*(?P<query>SELECT.*)',
-        re.IGNORECASE | re.DOTALL
-    )
-    
-    _CREATE_TEMP_AS_PATTERN2 = re.compile(
-        r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)\s+AS\s*\((?P<query>SELECT.*?)(?:\)|;|\s*$)',
-        re.IGNORECASE | re.DOTALL
-    )
-    
-    _CREATE_TEMP_PATTERN = re.compile(
-        r'^\s*CREATE\s+TEMP\s+TABLE\s+(?P<table>\S+)',
-        re.IGNORECASE
-    )
-    
-    _INSERT_INTO_PATTERN = re.compile(
-        r'^\s*INSERT\s+INTO\s+(?P<table>\S+)\s+(?P<query>SELECT.*)',
-        re.IGNORECASE | re.DOTALL
-    )
+    """
+    Converts SQL queries with temporary tables to Common Table Expressions (CTEs)
+    using AST-based analysis and transformation.
+    """
     
     def __init__(self, config: Dict[str, Any] = None):
         """
@@ -50,29 +37,21 @@ class CTEConverter(BaseConverter):
         self.indent_spaces = self.config.get('indent_spaces', 4)
         temp_table_patterns = self.config.get('temp_table_patterns', ['#.*'])
         
-        # Initialize components
-        self.parser = SQLParser()
-        
-        # Compile temp table regex from patterns
+        # Compile temporary table regex patterns
         try:
-            self.temp_table_regex = self._process_patterns(temp_table_patterns)
+            self.temp_patterns = self._process_patterns(temp_table_patterns)
         except Exception as e:
             raise ConfigError(f"Failed to process temp table patterns: {str(e)}")
         
-        # Conversion state - will be reset for each conversion
-        self.temp_tables = {}
-        self.temp_table_order = []  # Track order of appearance
-        self.current_temp_table = None
-
-    def _process_patterns(self, patterns: List[str]) -> str:
+    def _process_patterns(self, patterns: List[str]) -> List:
         """
-        Convert configuration patterns to regex pattern.
+        Convert configuration patterns to compiled regex patterns.
         
         Args:
             patterns: List of pattern strings
             
         Returns:
-            Compiled regex pattern string
+            List of compiled regex pattern objects
             
         Raises:
             ConfigError: When pattern processing fails
@@ -80,7 +59,7 @@ class CTEConverter(BaseConverter):
         if not patterns:
             raise ConfigError("No temp table patterns provided")
             
-        regex_fragments = []
+        compiled_patterns = []
         for i, pattern in enumerate(patterns):
             try:
                 # Convert simplified pattern to regex
@@ -89,19 +68,20 @@ class CTEConverter(BaseConverter):
                            .replace('*', '.*')
                            .replace('#', r'\#')
                 )
-                regex_fragments.append(processed)
+                compiled_patterns.append(re.compile(processed))
             except Exception as e:
                 self.logger.warning(f"Invalid pattern '{pattern}' at index {i}: {str(e)}")
         
-        if not regex_fragments:
+        if not compiled_patterns:
             self.logger.warning("No valid patterns found, using default pattern '#.*'")
-            return r'\#.*'
+            return [re.compile(r'\#.*')]
             
-        return '|'.join(regex_fragments)
+        return compiled_patterns
 
     def convert(self, sql: str) -> str:
         """
-        Convert SQL with temp tables to use CTEs.
+        Legacy method to maintain backward compatibility.
+        Converts SQL with temp tables to use CTEs using the new AST-based approach.
         
         Args:
             sql: SQL query text to convert
@@ -112,142 +92,117 @@ class CTEConverter(BaseConverter):
         Raises:
             ConverterError: For general conversion errors
             ValidationError: For validation errors
-            SQLSyntaxError: For SQL syntax errors
         """
         try:
-            # Reset state for this conversion
-            self.temp_tables = {}
-            self.temp_table_order = []  # Reset temp table order
-            self.current_temp_table = None
+            # Create a parser instance
+            parser = SQLParser()
             
-            # Phase 1: Split the SQL into statements
-            statements = self.parser.split_statements(sql)
+            # Parse the SQL into AST expressions
+            expressions = parser.parse(sql)
             
-            # Phase 2: Analyze SQL and identify temp tables
-            self._identify_temp_tables(statements)
+            # Use the AST-based conversion method
+            converted_expressions = self.convert_ast(expressions, parser)
             
-            # Phase 3: Build dependency graph
-            dependency_graph = self._build_dependency_graph(statements)
+            # Convert back to SQL text
+            converted_sql = "\n".join([parser.to_sql(expr) for expr in converted_expressions])
             
-            # Phase 4: Generate CTEs in topological order
-            ctes = self._generate_ctes(dependency_graph)
+            return converted_sql
             
-            # Phase 5: Transform remaining statements
-            main_query = self._transform_main_query(statements)
-            
-            # Phase 6: Assemble the final query
-            return self._assemble_final_query(ctes, main_query)
-            
-        except SQLSyntaxError as e:
-            self.logger.error(f"SQL syntax error during conversion: {e}")
-            raise
-        except ValidationError as e:
-            self.logger.error(f"Validation error during conversion: {e}")
-            raise
         except Exception as e:
             error_msg = f"Failed to convert SQL: {str(e)}"
             self.logger.error(error_msg)
-            snippet = sql[:100] + "..." if len(sql) > 100 else sql
-            raise ConverterError(error_msg, source=snippet) from e
+            raise ConverterError(error_msg) from e
 
-    def _identify_temp_tables(self, statements: List[str]) -> None:
+    def convert_ast(self, expressions: List[exp.Expression], parser: SQLParser) -> List[exp.Expression]:
         """
-        Identify temporary tables and their definitions in SQL statements.
+        Convert SQL expressions with temp tables to use CTEs using AST manipulation.
         
         Args:
-            statements: List of SQL statements
-        """
-        # Initialize/reset the temp table order tracking
-        self.temp_table_order = []
-        
-        for stmt in statements:
-            # Check for "SELECT ... INTO #temp"
-            select_into_match = self._SELECT_INTO_PATTERN.match(stmt)
-            if select_into_match:
-                table_name = select_into_match.group('table')
-                if self._is_temp_table(table_name):
-                    # Only add to order list the first time we see it
-                    if table_name not in self.temp_tables:
-                        self.temp_table_order.append(table_name)
-                        
-                    select_clause = select_into_match.group('select_clause')
-                    from_clause = select_into_match.group('remainder')
-                    definition = f"SELECT {select_clause}\n{from_clause}"
-                    
-                    self.temp_tables[table_name] = {
-                        'definition': definition,
-                        'cte_name': self._get_cte_name(table_name),
-                        'type': 'SELECT_INTO',
-                        'statement': stmt
-                    }
-                    continue
-                    
-            # Check for "CREATE TEMP TABLE #temp AS SELECT ..."
-            create_temp_match = (self._CREATE_TEMP_AS_PATTERN1.match(stmt) or 
-                                self._CREATE_TEMP_AS_PATTERN2.match(stmt))
-            if create_temp_match:
-                table_name = create_temp_match.group('table')
-                if self._is_temp_table(table_name):
-                    # Only add to order list the first time we see it
-                    if table_name not in self.temp_tables:
-                        self.temp_table_order.append(table_name)
-                        
-                    definition = create_temp_match.group('query').strip()
-                    if definition.endswith(';'):
-                        definition = definition[:-1]
-                    
-                    self.temp_tables[table_name] = {
-                        'definition': definition,
-                        'cte_name': self._get_cte_name(table_name),
-                        'type': 'CREATE_TEMP_AS',
-                        'statement': stmt
-                    }
-                    continue
-            
-            # Check for "CREATE TEMP TABLE" followed by "INSERT INTO"
-            create_temp_match = self._CREATE_TEMP_PATTERN.match(stmt)
-            if create_temp_match:
-                table_name = create_temp_match.group('table')
-                if self._is_temp_table(table_name):
-                    # Only add to order list the first time we see it
-                    if table_name not in self.temp_tables:
-                        self.temp_table_order.append(table_name)
-                        
-                    self.current_temp_table = table_name
-                    continue
-            
-            # Check for "INSERT INTO #temp"
-            if self.current_temp_table:
-                insert_pattern = re.compile(
-                    rf'^\s*INSERT\s+INTO\s+{re.escape(self.current_temp_table)}\s+(?P<query>SELECT.*)',
-                    re.IGNORECASE | re.DOTALL
-                )
-                insert_match = insert_pattern.match(stmt)
-                if insert_match:
-                    definition = insert_match.group('query').strip()
-                    if definition.endswith(';'):
-                        definition = definition[:-1]
-                    
-                    self.temp_tables[self.current_temp_table] = {
-                        'definition': definition,
-                        'cte_name': self._get_cte_name(self.current_temp_table),
-                        'type': 'INSERT_INTO',
-                        'statement': stmt
-                    }
-                    self.current_temp_table = None
-                    continue
-
-    def _is_temp_table(self, table_name: str) -> bool:
-        """
-        Check if a table name matches temp table patterns.
-        
-        Args:
-            table_name: Table name to check
+            expressions: List of AST expressions to convert
+            parser: SQLParser instance for AST operations
             
         Returns:
-            True if it's a temp table, False otherwise
+            List of converted AST expressions
+            
+        Raises:
+            ConverterError: For general conversion errors
+            ValidationError: For validation errors
         """
-        return bool(re.search(self.temp_table_regex, table_name))
+        try:
+            # Extract regex pattern strings for the parser
+            pattern_strings = [p.pattern for p in self.temp_patterns]
+            
+            # Find temporary tables in the expressions
+            temp_tables = self._identify_temp_tables(expressions, parser, pattern_strings)
+            
+            if not temp_tables:
+                # No temp tables found, return the original expressions
+                return expressions
+                
+            # Build dependency graph between temp tables
+            dependency_graph = self._build_dependency_graph(temp_tables)
+            
+            # Order temp tables based on dependencies
+            ordered_temp_tables = self._topological_sort(dependency_graph, temp_tables)
+            
+            # Separate main query from temp table definitions
+            main_expressions, definition_expressions = self._separate_expressions(
+                expressions, temp_tables
+            )
+            
+            if not main_expressions:
+                # If all expressions are temp table definitions, use the last one
+                # as the main query (with temp references replaced)
+                main_expressions = [self._deep_copy_expression(definition_expressions[-1])]
+            
+            # Create CTEs and apply transformations
+            result = self._create_ctes_and_transform(
+                main_expressions, ordered_temp_tables, parser
+            )
+            
+            return result
+            
+        except Exception as e:
+            if isinstance(e, (ValidationError, ConverterError)):
+                raise
+            error_msg = f"Failed to convert AST: {str(e)}"
+            self.logger.error(error_msg)
+            raise ConverterError(error_msg) from e
+
+    def _identify_temp_tables(
+        self, 
+        expressions: List[exp.Expression],
+        parser: SQLParser,
+        pattern_strings: List[str]
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Identify temporary tables and their definitions in AST expressions.
+        
+        Args:
+            expressions: List of AST expressions to analyze
+            parser: SQLParser instance for AST operations
+            pattern_strings: List of regex pattern strings for temp tables
+            
+        Returns:
+            Dictionary mapping temp table names to their definition info
+        """
+        # Use the parser to find temp tables
+        temp_tables_info = parser.find_temp_tables("\n".join([parser.to_sql(expr) for expr in expressions]), pattern_strings)
+        
+        # Convert to our internal format
+        temp_tables = {}
+        for temp_info in temp_tables_info:
+            name = temp_info['name']
+            temp_tables[name] = {
+                'name': name,
+                'cte_name': self._get_cte_name(name),
+                'type': temp_info['type'],
+                'definition': temp_info['definition'],
+                'defined_expr': temp_info['defined_expr'],
+                'dependencies': temp_info['dependencies']
+            }
+            
+        return temp_tables
 
     def _get_cte_name(self, temp_name: str) -> str:
         """
@@ -261,268 +216,196 @@ class CTEConverter(BaseConverter):
         """
         return temp_name.lstrip('#').replace('.', '_')
 
-    def _extract_table_references(self, sql: str) -> Set[str]:
-        """
-        Extract all table references from SQL that match temp table patterns.
-        
-        Args:
-            sql: SQL statement to analyze
-            
-        Returns:
-            Set of referenced temp table names
-        """
-        references = set()
-    
-        # FIXED: Improved regex to better catch table references
-        # Look for FROM/JOIN followed by anything that's not a space, comma, semicolon, or parenthesis
-        pattern = re.compile(
-            r'(?:FROM|JOIN)\s+(?:\w+\.)?([^\s,;()]+)',
-            re.IGNORECASE
-        )
-        
-        # Also specifically look for temp tables with # prefix
-        temp_pattern = re.compile(r'#\w+', re.IGNORECASE)
-        
-        # Check regular FROM/JOIN references
-        for match in pattern.finditer(sql):
-            table_ref = match.group(1)
-            if self._is_temp_table(table_ref) and table_ref in self.temp_tables:
-                references.add(table_ref)
-        
-        # ADDED: Also look for direct # references anywhere
-        for match in temp_pattern.finditer(sql):
-            table_ref = match.group(0)
-            if table_ref in self.temp_tables:
-                references.add(table_ref)
-        
-        return references
-
-    def _build_dependency_graph(self, statements: List[str]) -> Dict[str, List[str]]:
+    def _build_dependency_graph(self, temp_tables: Dict[str, Dict[str, Any]]) -> Dict[str, List[str]]:
         """
         Build a dependency graph between temp tables.
         
         Args:
-            statements: List of SQL statements
+            temp_tables: Dictionary of temp tables and their info
             
         Returns:
             Dictionary mapping temp tables to their dependencies
         """
-        dependency_graph = {name: [] for name in self.temp_tables}
+        # Initialize the graph with empty dependency lists
+        graph = {name: [] for name in temp_tables}
         
-        # Process defined temp tables first
-        for temp_name, temp_info in self.temp_tables.items():
-            # Extract table references from the definition
-            definition = temp_info['definition']
-            references = self._extract_table_references(definition)
+        # Add dependencies from the temp_tables info
+        for name, info in temp_tables.items():
+            for dep in info['dependencies']:
+                if dep in temp_tables and dep != name:  # Avoid self-references
+                    if dep not in graph[name]:
+                        graph[name].append(dep)
+        
+        return graph
+
+    def _topological_sort(
+        self, 
+        graph: Dict[str, List[str]], 
+        temp_tables: Dict[str, Dict[str, Any]]
+    ) -> List[str]:
+        """
+        Sort temp tables in dependency order using topological sort.
+        
+        Args:
+            graph: Dependency graph of temp tables
+            temp_tables: Dictionary of temp tables and their info
             
-            for ref in references:
-                if ref in self.temp_tables and ref != temp_name:  # Avoid self-references
-                    dependency_graph[temp_name].append(ref)
+        Returns:
+            List of temp table names in dependency order
+            
+        Raises:
+            ValidationError: If a circular dependency is detected
+        """
+        # Track visited nodes for cycle detection
+        permanent_mark = set()
+        temporary_mark = set()
+        result = []
         
-        # Find any references in the main query
-        for stmt in statements:
-            # Skip statements that define temp tables
-            if any(info['statement'] == stmt for info in self.temp_tables.values()):
-                continue
+        def visit(node):
+            if node in permanent_mark:
+                return
+            if node in temporary_mark:
+                raise ValidationError(f"Circular dependency detected involving {node}")
                 
-            # Check for implicit dependencies between temp tables
-            # that are referenced in the same statement
-            references = self._extract_table_references(stmt)
-            if len(references) > 1:
-                # Multiple temp tables are referenced in this statement
-                # Create implicit dependencies based on order of reference
-                references_list = list(references)
-                for i in range(len(references_list) - 1):
-                    for j in range(i + 1, len(references_list)):
-                        ref1 = references_list[i]
-                        ref2 = references_list[j]
-                        if ref2 not in dependency_graph[ref1]:
-                            dependency_graph[ref1].append(ref2)
-        
-        return dependency_graph
-
-    def _generate_ctes(self, dependency_graph: Dict[str, List[str]]) -> List[Tuple[str, str]]:
-        """
-        Generate CTEs in proper dependency order using topological sort while 
-        preserving original order within same dependency level.
-        
-        Args:
-            dependency_graph: Dependency graph of temp tables
+            temporary_mark.add(node)
             
-        Returns:
-            List of (cte_name, definition) tuples in proper order
-        """
-        # Track original order of appearance using our explicit tracking list
-        original_order = {name: idx for idx, name in enumerate(self.temp_table_order)}
-        
-        # Helper function for topological sort
-        def topological_sort():
-            # Track permanent and temporary marks for cycle detection
-            permanent_mark = set()
-            temporary_mark = set()
-            result = []
-            
-            def visit(node):
-                if node in permanent_mark:
-                    return
-                if node in temporary_mark:
-                    raise ValidationError(f"Circular dependency detected involving {node}")
-                    
-                temporary_mark.add(node)
+            # Visit dependencies first
+            for dependency in graph.get(node, []):
+                visit(dependency)
                 
-                # Visit dependencies first
-                for dependency in dependency_graph.get(node, []):
-                    visit(dependency)
-                    
-                temporary_mark.remove(node)
-                permanent_mark.add(node)
-                result.append(node)
+            temporary_mark.remove(node)
+            permanent_mark.add(node)
+            result.append(node)
+            
+        # Visit all nodes
+        for node in graph:
+            if node not in permanent_mark:
+                visit(node)
                 
-            # Visit all nodes
-            for node in dependency_graph:
-                if node not in permanent_mark:
-                    visit(node)
+        # Return in reverse order (dependencies first)
+        return list(reversed(result))
+
+    def _separate_expressions(
+        self, 
+        expressions: List[exp.Expression],
+        temp_tables: Dict[str, Dict[str, Any]]
+    ) -> Tuple[List[exp.Expression], List[exp.Expression]]:
+        """
+        Separate main query expressions from temp table definition expressions.
+        
+        Args:
+            expressions: List of all AST expressions
+            temp_tables: Dictionary of temp tables and their info
+            
+        Returns:
+            Tuple of (main_expressions, definition_expressions)
+        """
+        # Find expression objects that define temp tables
+        definition_expr_set = set()
+        for info in temp_tables.values():
+            definition_expr_set.add(id(info['defined_expr']))
+        
+        # Separate main and definition expressions
+        main_expressions = []
+        definition_expressions = []
+        
+        for expr in expressions:
+            if id(expr) in definition_expr_set:
+                definition_expressions.append(expr)
+            else:
+                main_expressions.append(expr)
+        
+        return main_expressions, definition_expressions
+
+    def _deep_copy_expression(self, expr: exp.Expression) -> exp.Expression:
+        """
+        Create a deep copy of an AST expression.
+        
+        Args:
+            expr: AST expression to copy
+            
+        Returns:
+            Deep copy of the expression
+        """
+        return expr.copy()
+
+    def _create_ctes_and_transform(
+        self,
+        main_expressions: List[exp.Expression],
+        ordered_temp_tables: List[str],
+        parser: SQLParser
+    ) -> List[exp.Expression]:
+        """
+        Create CTEs and transform main expressions to use them.
+        
+        Args:
+            main_expressions: List of main query expressions
+            ordered_temp_tables: List of temp table names in dependency order
+            parser: SQLParser instance for AST operations
+            
+        Returns:
+            List of transformed expressions using CTEs
+        """
+        if not ordered_temp_tables:
+            return main_expressions
+        
+        # Create a map of original table names to CTE names
+        replacements = {
+            name: self._get_cte_name(name)
+            for name in ordered_temp_tables
+        }
+        
+        # Transform each main expression
+        result = []
+        for expr in main_expressions:
+            # Replace table references in the main expression
+            transformed_expr = parser.replace_references(expr, replacements)
+            
+            # If it's already a WITH expression, we need to add our CTEs to it
+            if isinstance(transformed_expr, exp.With):
+                # Extract the existing WITH expression's query
+                with_query = transformed_expr.expression
+                
+                # Add our CTEs to the existing CTEs
+                for name in ordered_temp_tables:
+                    cte_name = replacements[name]
+                    cte_def = self._temp_tables[name]['definition']
                     
-            return result
+                    # Replace references in the CTE definition
+                    cte_def = parser.replace_references(cte_def, replacements)
+                    
+                    # Add to existing WITH expressions
+                    transformed_expr.expressions.append(
+                        exp.CTE(
+                            this=exp.to_identifier(cte_name),
+                            expression=cte_def
+                        )
+                    )
+                
+                result.append(transformed_expr)
+            else:
+                # Create a new WITH expression with our CTEs
+                ctes = []
+                for name in ordered_temp_tables:
+                    cte_name = replacements[name]
+                    cte_def = self._temp_tables[name]['definition']
+                    
+                    # Replace references in the CTE definition
+                    cte_def = parser.replace_references(cte_def, replacements)
+                    
+                    ctes.append(
+                        exp.CTE(
+                            this=exp.to_identifier(cte_name),
+                            expression=cte_def
+                        )
+                    )
+                
+                # Create the WITH expression with the transformed main query
+                with_expr = exp.With(
+                    expressions=ctes,
+                    expression=transformed_expr
+                )
+                
+                result.append(with_expr)
         
-        # Get the ordered list of temp table names
-        ordered_temp_tables = topological_sort()
-        
-        # Calculate dependency level for each table
-        levels = {}
-        for node in ordered_temp_tables:
-            # Calculate level (max level of dependencies + 1)
-            max_dep_level = 0
-            for dep in dependency_graph.get(node, []):
-                if dep in levels:
-                    max_dep_level = max(max_dep_level, levels[dep] + 1)
-            levels[node] = max_dep_level
-        
-        # Group nodes by level
-        level_groups = {}
-        for node, level in levels.items():
-            if level not in level_groups:
-                level_groups[level] = []
-            level_groups[level].append(node)
-        
-        # Sort each level by original order
-        for level in level_groups:
-            # Use get() with a default to handle any tables not in our order list
-            level_groups[level].sort(key=lambda x: original_order.get(x, float('inf')))
-        
-        # Build final ordered list respecting both dependencies and original order
-        final_ordered_tables = []
-        for level in sorted(level_groups.keys()):
-            final_ordered_tables.extend(level_groups[level])
-        
-        # Generate CTE definitions
-        ctes = []
-        for temp_name in final_ordered_tables:
-            # Get the cleaned name and definition
-            cte_name = self.temp_tables[temp_name]['cte_name']
-            definition = self.temp_tables[temp_name]['definition']
-            
-            # FIXED: Use the same improved pattern for replacing references
-            for ref_temp_name in self.temp_tables:
-                if ref_temp_name != temp_name:  # Avoid self-references
-                    ref_cte_name = self.temp_tables[ref_temp_name]['cte_name']
-                    # Use the same improved pattern we used in _transform_main_query
-                    pattern = r'(?<![a-zA-Z0-9_])' + re.escape(ref_temp_name) + r'(?![a-zA-Z0-9_])'
-                    definition = re.sub(pattern, ref_cte_name, definition, flags=re.IGNORECASE)
-            
-            ctes.append((cte_name, definition))
-        
-        return ctes
-
-    def _is_temp_definition(self, stmt: str) -> bool:
-        """
-        Check if a statement defines a temp table.
-        
-        Args:
-            stmt: SQL statement to check
-            
-        Returns:
-            True if it defines a temp table, False otherwise
-        """
-        # Check if this statement matches any of the temp table definition patterns
-        for temp_info in self.temp_tables.values():
-            if temp_info['statement'] == stmt:
-                return True
-        return False
-
-    def _transform_main_query(self, statements: List[str]) -> str:
-        """
-        Transform the main query by replacing temp table references with CTE names.
-        
-        Args:
-            statements: List of SQL statements
-            
-        Returns:
-            Transformed main query
-        """
-        # Filter out statements that define temp tables
-        main_statements = []
-        for stmt in statements:
-            if not self._is_temp_definition(stmt):
-                main_statements.append(stmt)
-        
-        # Replace temp table references in remaining statements
-        transformed_statements = []
-        for stmt in main_statements:
-            transformed = stmt
-            for temp_name, info in self.temp_tables.items():
-                cte_name = info['cte_name']
-                pattern = r'(?<![a-zA-Z0-9_])' + re.escape(temp_name) + r'(?![a-zA-Z0-9_])'
-                transformed = re.sub(pattern, cte_name, transformed, flags=re.IGNORECASE)
-            transformed_statements.append(transformed)
-        
-        # Join statements WITHOUT stripping semicolons
-        return "\n".join(transformed_statements)  # Removed the rstrip(';
-
-    def _assemble_final_query(self, ctes: List[Tuple[str, str]], main_query: str) -> str:
-        if not ctes:
-            return main_query
-        
-        # Sort CTEs by original appearance order
-        original_order = {name: idx for idx, name in enumerate(self.temp_table_order)}
-        
-        # Create a mapping from CTE name to original temp table name
-        cte_to_temp = {}
-        for temp_name, info in self.temp_tables.items():
-            cte_to_temp[info['cte_name']] = temp_name
-        
-        # Sort the CTEs by the original order of their corresponding temp tables
-        sorted_ctes = sorted(ctes, key=lambda x: original_order.get(cte_to_temp.get(x[0], ''), float('inf')))
-        
-        # Format each CTE with proper indentation
-        cte_clauses = []
-        for name, definition in sorted_ctes:
-            # Clean and indent the definition
-            clean_def = definition.rstrip(';')
-            indented_def = self._indent(clean_def)
-            cte_clauses.append(f"{name} AS (\n{indented_def}\n)")
-        
-        # Check if the original query had semicolons BEFORE stripping them
-        had_semicolon = main_query.rstrip().endswith(';')
-        
-        # Now strip the semicolon for formatting
-        main_query = main_query.rstrip(';')
-        
-        # Use the saved flag to determine whether to add a semicolon
-        if had_semicolon:
-            return f"WITH {',\n'.join(cte_clauses)}\n{main_query};"
-        else:
-            return f"WITH {',\n'.join(cte_clauses)}\n{main_query}"
-
-    def _indent(self, sql: str) -> str:
-        """
-        Apply configured indentation to SQL.
-        
-        Args:
-            sql: SQL string to indent
-            
-        Returns:
-            Indented SQL
-        """
-        indent = ' ' * self.indent_spaces
-        return '\n'.join(f"{indent}{line}" for line in sql.split('\n'))
+        return result

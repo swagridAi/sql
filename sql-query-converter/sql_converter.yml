@@ -1,17 +1,85 @@
+# SQL Converter Configuration
+# Enhanced for AST-based parsing and transformation
+
+# Converters to apply (in order)
 converters:
   - cte
+  # - pivot (future support)
 
+# Logging configuration
 logging:
-  level: DEBUG
+  level: DEBUG  # DEBUG, INFO, WARNING, ERROR, CRITICAL
   file: conversions.log
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  console: true  # Output to console in addition to file
 
+# New parser configuration
+parser:
+  # SQL dialect to use
+  dialect: ansi  # ansi, tsql, mysql, postgresql, oracle, snowflake, redshift
+  
+  # Optimization level
+  # 0: No optimization
+  # 1: Basic optimizations (constant folding, dead code removal)
+  # 2: Advanced optimizations (predicate pushdown, join reordering)
+  optimization_level: 1
+  
+  # Whether to add schema information to the parse tree
+  schema_aware: false
+  
+  # Treatment of syntax errors
+  error_handling: strict  # strict, relaxed, recovery
+  
+  # Pretty printing options
+  pretty_print:
+    enabled: true
+    indent_spaces: 2
+    uppercase_keywords: true
+    max_line_length: 100
+
+# CTE converter configuration
 cte_converter:
+  # Indentation for CTEs
   indent_spaces: 2
+  
+  # Patterns to identify temp tables (regex simplified syntax)
   temp_table_patterns:
     - "#?temp_*"
     - "#?tmp_*"
     - "#.*"
+  
+  # CTE naming style
+  cte_naming:
+    strip_prefix: true    # Remove # and temp_ prefixes
+    style: original       # original, snake_case, camelCase
+  
+  # Dependency handling
+  dependency_handling:
+    detect_cycles: true   # Detect circular dependencies
+    auto_break_cycles: false  # Automatically break cycles (advanced)
+  
+  # AST-specific options
+  ast:
+    preserve_comments: true    # Try to preserve comments in conversion
+    preserve_formatting: false  # Try to preserve original formatting
 
+# Output configuration
 output:
   default_output_dir: ./converted_sql
   overwrite: true
+  backup: true       # Create backups of overwritten files
+  format: true       # Format output SQL
+  
+  # Formatting options (if format is true)
+  formatting:
+    indent_spaces: 2
+    uppercase_keywords: true
+    max_line_length: 80
+    comma_style: end    # end, start
+    align_columns: true
+
+# Advanced options
+advanced:
+  parallelism: 0  # 0 = auto, N = use N threads
+  max_memory_mb: 0  # 0 = unlimited, N = limit to N MB
+  timeout_seconds: 0  # 0 = unlimited, N = timeout after N seconds
