@@ -61,6 +61,7 @@ class CTEConverter(BaseConverter):
         
         # Conversion state - will be reset for each conversion
         self.temp_tables = {}
+        self.temp_table_order = []  # Track order of appearance
         self.current_temp_table = None
 
     def _process_patterns(self, patterns: List[str]) -> str:
@@ -116,6 +117,7 @@ class CTEConverter(BaseConverter):
         try:
             # Reset state for this conversion
             self.temp_tables = {}
+            self.temp_table_order = []  # Reset temp table order
             self.current_temp_table = None
             
             # Phase 1: Split the SQL into statements
@@ -155,12 +157,19 @@ class CTEConverter(BaseConverter):
         Args:
             statements: List of SQL statements
         """
+        # Initialize/reset the temp table order tracking
+        self.temp_table_order = []
+        
         for stmt in statements:
             # Check for "SELECT ... INTO #temp"
             select_into_match = self._SELECT_INTO_PATTERN.match(stmt)
             if select_into_match:
                 table_name = select_into_match.group('table')
                 if self._is_temp_table(table_name):
+                    # Only add to order list the first time we see it
+                    if table_name not in self.temp_tables:
+                        self.temp_table_order.append(table_name)
+                        
                     select_clause = select_into_match.group('select_clause')
                     from_clause = select_into_match.group('remainder')
                     definition = f"SELECT {select_clause}\n{from_clause}"
@@ -179,6 +188,10 @@ class CTEConverter(BaseConverter):
             if create_temp_match:
                 table_name = create_temp_match.group('table')
                 if self._is_temp_table(table_name):
+                    # Only add to order list the first time we see it
+                    if table_name not in self.temp_tables:
+                        self.temp_table_order.append(table_name)
+                        
                     definition = create_temp_match.group('query').strip()
                     if definition.endswith(';'):
                         definition = definition[:-1]
@@ -196,6 +209,10 @@ class CTEConverter(BaseConverter):
             if create_temp_match:
                 table_name = create_temp_match.group('table')
                 if self._is_temp_table(table_name):
+                    # Only add to order list the first time we see it
+                    if table_name not in self.temp_tables:
+                        self.temp_table_order.append(table_name)
+                        
                     self.current_temp_table = table_name
                     continue
             
@@ -326,7 +343,8 @@ class CTEConverter(BaseConverter):
 
     def _generate_ctes(self, dependency_graph: Dict[str, List[str]]) -> List[Tuple[str, str]]:
         """
-        Generate CTEs in proper dependency order using topological sort.
+        Generate CTEs in proper dependency order using topological sort while 
+        preserving original order within same dependency level.
         
         Args:
             dependency_graph: Dependency graph of temp tables
@@ -334,6 +352,9 @@ class CTEConverter(BaseConverter):
         Returns:
             List of (cte_name, definition) tuples in proper order
         """
+        # Track original order of appearance using our explicit tracking list
+        original_order = {name: idx for idx, name in enumerate(self.temp_table_order)}
+        
         # Helper function for topological sort
         def topological_sort():
             # Track permanent and temporary marks for cycle detection
@@ -366,10 +387,37 @@ class CTEConverter(BaseConverter):
         
         # Get the ordered list of temp table names
         ordered_temp_tables = topological_sort()
-    
+        
+        # Calculate dependency level for each table
+        levels = {}
+        for node in ordered_temp_tables:
+            # Calculate level (max level of dependencies + 1)
+            max_dep_level = 0
+            for dep in dependency_graph.get(node, []):
+                if dep in levels:
+                    max_dep_level = max(max_dep_level, levels[dep] + 1)
+            levels[node] = max_dep_level
+        
+        # Group nodes by level
+        level_groups = {}
+        for node, level in levels.items():
+            if level not in level_groups:
+                level_groups[level] = []
+            level_groups[level].append(node)
+        
+        # Sort each level by original order
+        for level in level_groups:
+            # Use get() with a default to handle any tables not in our order list
+            level_groups[level].sort(key=lambda x: original_order.get(x, float('inf')))
+        
+        # Build final ordered list respecting both dependencies and original order
+        final_ordered_tables = []
+        for level in sorted(level_groups.keys()):
+            final_ordered_tables.extend(level_groups[level])
+        
         # Generate CTE definitions
         ctes = []
-        for temp_name in ordered_temp_tables:
+        for temp_name in final_ordered_tables:
             # Get the cleaned name and definition
             cte_name = self.temp_tables[temp_name]['cte_name']
             definition = self.temp_tables[temp_name]['definition']
