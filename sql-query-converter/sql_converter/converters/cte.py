@@ -1,6 +1,6 @@
 import re
 import logging
-from typing import List, Tuple, Dict, Optional, Any, Match, Pattern
+from typing import List, Tuple, Dict, Optional, Any, Match, Pattern, Set
 
 from sql_converter.converters.base import BaseConverter
 from sql_converter.parsers.sql_parser import SQLParser
@@ -31,6 +31,11 @@ class CTEConverter(BaseConverter):
         re.IGNORECASE
     )
     
+    _INSERT_INTO_PATTERN = re.compile(
+        r'^\s*INSERT\s+INTO\s+(?P<table>\S+)\s+(?P<query>SELECT.*)',
+        re.IGNORECASE | re.DOTALL
+    )
+    
     def __init__(self, config: Dict[str, Any] = None):
         """
         Initialize CTEConverter with configuration.
@@ -54,11 +59,9 @@ class CTEConverter(BaseConverter):
         except Exception as e:
             raise ConfigError(f"Failed to process temp table patterns: {str(e)}")
         
-        # Conversion state
-        self.cte_definitions: List[Tuple[str, str]] = []
-        self.main_queries: List[str] = []
-        self.temp_table_map: Dict[str, str] = {}
-        self.current_temp_table: Optional[str] = None
+        # Conversion state - will be reset for each conversion
+        self.temp_tables = {}
+        self.current_temp_table = None
 
     def _process_patterns(self, patterns: List[str]) -> str:
         """
@@ -110,422 +113,337 @@ class CTEConverter(BaseConverter):
             ValidationError: For validation errors
             SQLSyntaxError: For SQL syntax errors
         """
-        self._reset_state()
-        
         try:
-            # Split into statements
+            # Reset state for this conversion
+            self.temp_tables = {}
+            self.current_temp_table = None
+            
+            # Phase 1: Split the SQL into statements
             statements = self.parser.split_statements(sql)
             
-            # First pass: Identify all temp tables and their definitions
-            for stmt in statements:
-                # Add this line to scan for references first
-                self._identify_temp_references(stmt)
-                self._process_statement(stmt)
+            # Phase 2: Analyze SQL and identify temp tables
+            self._identify_temp_tables(statements)
             
-            # Handle referenced but undefined temp tables
-            self._handle_referenced_temps()
+            # Phase 3: Build dependency graph
+            dependency_graph = self._build_dependency_graph(statements)
             
-            # Second pass: Resolve nested references between temp tables
-            self._resolve_nested_references()
+            # Phase 4: Generate CTEs in topological order
+            ctes = self._generate_ctes(dependency_graph)
             
-            # Build the final query with properly ordered CTEs
-            return self._build_final_query()
-        
+            # Phase 5: Transform remaining statements
+            main_query = self._transform_main_query(statements)
+            
+            # Phase 6: Assemble the final query
+            return self._assemble_final_query(ctes, main_query)
+            
         except SQLSyntaxError as e:
-            # Preserve SQL syntax errors
             self.logger.error(f"SQL syntax error during conversion: {e}")
             raise
         except ValidationError as e:
-            # Preserve validation errors
             self.logger.error(f"Validation error during conversion: {e}")
             raise
         except Exception as e:
-            # Wrap other exceptions in ConverterError
             error_msg = f"Failed to convert SQL: {str(e)}"
             self.logger.error(error_msg)
-            
-            # Include a snippet of the SQL in the error
             snippet = sql[:100] + "..." if len(sql) > 100 else sql
             raise ConverterError(error_msg, source=snippet) from e
 
-    def _handle_referenced_temps(self) -> None:
-        """Create placeholders for temp tables that are referenced but not defined."""
-        # Get all CTE names that already have definitions
-        defined_cte_names = {cte_name for cte_name, _ in self.cte_definitions}
-        
-        for temp_name in self.referenced_temps:
-            # Skip if this temp table is already defined
-            if temp_name in self.defined_temps:
-                continue
-                
-            # Get the clean CTE name for this temp
-            cte_name = self.temp_table_map[temp_name]
-            
-            # Only add if we don't already have this CTE
-            if cte_name not in defined_cte_names:
-                self.cte_definitions.append((
-                    cte_name,
-                    f"SELECT * FROM (SELECT 1 as placeholder) as dummy_source"
-                ))
-                defined_cte_names.add(cte_name)
-    
-    def _reset_state(self) -> None:
-        """Reset converter state between conversions."""
-        self.cte_definitions = []
-        self.main_queries = []
-        self.temp_table_map = {}
-        self.current_temp_table = None
-        self.referenced_temps = set()  # Track referenced but undefined temp tables
-        self.defined_temps = set()     # Track temp tables that have been defined
-
-    def _identify_temp_references(self, sql: str) -> None:
-        """Identify temporary table references in SQL statement."""
-        # Find all potential temp table references using the configured pattern
-        pattern = re.compile(self.temp_table_regex, re.IGNORECASE)
-        for match in pattern.finditer(sql):
-            temp_name = match.group(0)
-            
-            # Skip if this temp table is already defined
-            if temp_name in self.defined_temps:
-                continue
-                
-            # Add to temp_table_map if not already there
-            if temp_name not in self.temp_table_map:
-                clean_name = temp_name.lstrip('#').replace('.', '_')
-                self.temp_table_map[temp_name] = clean_name
-            
-            # Add to referenced_temps if not already defined
-            if temp_name not in self.defined_temps:
-                self.referenced_temps.add(temp_name)
-
-    def _process_statement(self, stmt: str) -> None:
+    def _identify_temp_tables(self, statements: List[str]) -> None:
         """
-        Process a single SQL statement.
+        Identify temporary tables and their definitions in SQL statements.
         
         Args:
-            stmt: SQL statement to process
-            
-        Raises:
-            ValidationError: When statement processing fails
+            statements: List of SQL statements
         """
-        try:
-            
-            if self._handle_temp_creation(stmt):
-                return
-
-            if self.current_temp_table:
-                self._handle_temp_insert(stmt)
-            else:
-                self._add_main_query(stmt)
-        except Exception as e:
-            if isinstance(e, (ValidationError, SQLSyntaxError)):
-                raise
-            raise ValidationError(f"Failed to process statement: {str(e)}", 
-                                 source=stmt[:50] + "..." if len(stmt) > 50 else stmt) from e
-
-    def _handle_temp_creation(self, stmt: str) -> bool:
-        """
-        Handle temp table creation using configured patterns.
-        
-        Args:
-            stmt: SQL statement to check for temp table creation
-            
-        Returns:
-            True if statement created a temp table, False otherwise
-            
-        Raises:
-            ValidationError: When temp table creation handling fails
-        """
-        try:
-            return any([
-                self._handle_select_into(stmt),
-                self._handle_create_temp_as(stmt),
-                self._handle_create_temp(stmt)
-            ])
-        except Exception as e:
-            if isinstance(e, ValidationError):
-                raise
-            raise ValidationError(f"Failed to handle temp table creation: {str(e)}", 
-                                 source=stmt[:50] + "..." if len(stmt) > 50 else stmt) from e
-
-    def _handle_select_into(self, stmt: str) -> bool:
-        """
-        Handle SELECT INTO pattern.
-        
-        Args:
-            stmt: SQL statement to check for SELECT INTO
-            
-        Returns:
-            True if statement matched pattern, False otherwise
-            
-        Raises:
-            ValidationError: When SELECT INTO handling fails
-        """
-        match = self._SELECT_INTO_PATTERN.match(stmt)
-        if not match:
-            return False
-
-        try:
-            raw_table = match.group('table')
-            if not re.search(self.temp_table_regex, raw_table):
-                return False
-
-            clean_name = raw_table.lstrip('#').replace('.', '_')
-            
-            # Build and clean the full query
-            full_query = f"SELECT {match.group('select_clause')}\n{match.group('remainder')}"
-            if full_query.endswith(';'):
-                full_query = full_query[:-1]
-            
-            self.cte_definitions.append((clean_name, full_query))
-            self.temp_table_map[raw_table] = clean_name
-            return True
-
-        except Exception as e:
-            raise ValidationError(
-                f"Error handling SELECT INTO: {str(e)}",
-                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
-            ) from e
-
-    def _handle_create_temp_as(self, stmt: str) -> bool:
-        """Handle CREATE TEMP TABLE AS SELECT pattern."""
-        match = self._CREATE_TEMP_AS_PATTERN1.match(stmt) or self._CREATE_TEMP_AS_PATTERN2.match(stmt)
-        if not match:
-            return False
-
-        try:
-            raw_table = match.group('table')
-            if not re.search(self.temp_table_regex, raw_table):
-                return False
-
-            clean_name = raw_table.lstrip('#').replace('.', '_')
-            query = match.group('query').strip()
-            if query.endswith(';'):
-                query = query[:-1]
-                
-            # Add to defined tables and CTE definitions
-            self.defined_temps.add(raw_table)
-            self.cte_definitions.append((clean_name, query))
-            self.temp_table_map[raw_table] = clean_name
-            
-            # Remove from referenced if it was there
-            if raw_table in self.referenced_temps:
-                self.referenced_temps.remove(raw_table)
-                
-            return True
-        except Exception as e:
-            raise ValidationError(
-                f"Error handling CREATE TEMP TABLE AS: {str(e)}",
-                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
-            ) from e
-
-    def _handle_create_temp(self, stmt: str) -> bool:
-        """
-        Handle CREATE TEMP TABLE without AS SELECT.
-        
-        Args:
-            stmt: SQL statement to check for CREATE TEMP TABLE
-            
-        Returns:
-            True if statement matched pattern, False otherwise
-            
-        Raises:
-            ValidationError: When CREATE TEMP TABLE handling fails
-        """
-        match = self._CREATE_TEMP_PATTERN.match(stmt)
-        if not match:
-            return False
-
-        try:
-            raw_table = match.group('table')
-            if not re.search(self.temp_table_regex, raw_table):
-                return False
-
-            self.current_temp_table = raw_table
-            return True
-        except Exception as e:
-            raise ValidationError(
-                f"Error handling CREATE TEMP TABLE: {str(e)}",
-                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
-            ) from e
-
-    def _handle_temp_insert(self, stmt: str) -> None:
-        """
-        Handle INSERT INTO temp table.
-        
-        Args:
-            stmt: SQL statement to check for INSERT INTO
-            
-        Raises:
-            ValidationError: When INSERT INTO handling fails
-        """
-        if not self.current_temp_table:
-            self._add_main_query(stmt)
-            return
-            
-        try:
-            # Create the pattern on demand with the current temp table name
-            pattern = re.compile(
-                rf'^\s*INSERT\s+INTO\s+{re.escape(self.current_temp_table)}\s+(?P<query>SELECT.*)',
-                re.IGNORECASE | re.DOTALL
-            )
-
-            match = pattern.match(stmt)
-            if match:
-                clean_name = self.current_temp_table.lstrip('#').replace('.', '_')
-                
-                # Clean the query
-                query = match.group('query').strip()
-                if query.endswith(';'):
-                    query = query[:-1]
+        for stmt in statements:
+            # Check for "SELECT ... INTO #temp"
+            select_into_match = self._SELECT_INTO_PATTERN.match(stmt)
+            if select_into_match:
+                table_name = select_into_match.group('table')
+                if self._is_temp_table(table_name):
+                    select_clause = select_into_match.group('select_clause')
+                    from_clause = select_into_match.group('remainder')
+                    definition = f"SELECT {select_clause}\n{from_clause}"
                     
-                self.cte_definitions.append((clean_name, query))
-                self.temp_table_map[self.current_temp_table] = clean_name
-                self.current_temp_table = None
-            else:
-                self._add_main_query(stmt)
-        except Exception as e:
-            raise ValidationError(
-                f"Error handling INSERT INTO temp table: {str(e)}",
-                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
-            ) from e
-
-    def _resolve_nested_references(self) -> None:
-        """
-        Resolve references between temp tables in CTE definitions.
-        """
-        # Maximum number of passes to prevent infinite loops
-        max_passes = 10
-        changes_made = True
-        pass_count = 0
-        
-        # Add temp tables from CTE definitions to avoid treating them as undefined
-        defined_temp_tables = {name for name, _ in self.cte_definitions}
-        
-        try:
-            # Continue making passes until no more changes or max passes reached
-            while changes_made and pass_count < max_passes:
-                changes_made = False
-                pass_count += 1
-                
-                # Update all CTE definitions in each pass
-                updated_definitions = []
-                for name, query in self.cte_definitions:
-                    original_query = query
-                    processed_query = query
-                    
-                    # Try to replace all temp table references in this CTE definition
-                    for temp, cte in self.temp_table_map.items():
-                        # Skip if this is a reference to the current CTE
-                        if cte == name:
-                            continue
-                            
-                        # Use improved pattern to match temp table names correctly
-                        pattern = rf'\b{re.escape(temp)}\b'
-                        processed_query = re.sub(
-                            pattern, 
-                            cte, 
-                            processed_query, 
-                            flags=re.IGNORECASE
-                        )
-                    
-                    # Check if we made any changes in this pass
-                    if processed_query != original_query:
-                        changes_made = True
-                        self.logger.debug(f"Resolved nested reference in CTE '{name}'")
-                    
-                    updated_definitions.append((name, processed_query))
-                
-                # Update CTE definitions for next pass
-                self.cte_definitions = updated_definitions
-                
-                # Don't look for new references in CTE definitions after initial pass
-                if pass_count > 1:
+                    self.temp_tables[table_name] = {
+                        'definition': definition,
+                        'cte_name': self._get_cte_name(table_name),
+                        'type': 'SELECT_INTO',
+                        'statement': stmt
+                    }
                     continue
                     
-                # Make sure any temp table referenced in a CTE has its own definition
-                newly_referenced_temps = set()
-                for name, query in self.cte_definitions:
-                    # Add this to defined temp tables to prevent redefinition
-                    defined_temp_tables.add(name)
+            # Check for "CREATE TEMP TABLE #temp AS SELECT ..."
+            create_temp_match = (self._CREATE_TEMP_AS_PATTERN1.match(stmt) or 
+                                self._CREATE_TEMP_AS_PATTERN2.match(stmt))
+            if create_temp_match:
+                table_name = create_temp_match.group('table')
+                if self._is_temp_table(table_name):
+                    definition = create_temp_match.group('query').strip()
+                    if definition.endswith(';'):
+                        definition = definition[:-1]
                     
-                    # Look for remaining temp references
-                    for match in re.finditer(r'#\w+', query):
-                        temp_name = match.group(0)
-                        if temp_name not in self.temp_table_map and temp_name not in defined_temp_tables:
-                            # Add this newly discovered reference
-                            clean_name = temp_name.lstrip('#').replace('.', '_')
-                            self.temp_table_map[temp_name] = clean_name
-                            newly_referenced_temps.add(temp_name)
-                            changes_made = True
-                
-                # Add any newly discovered references to the referenced_temps set
-                if newly_referenced_temps:
-                    self.referenced_temps.update(newly_referenced_temps)
-                    # Handle the new references
-                    self._handle_referenced_temps()
-        except Exception as e:
-            raise ConverterError(f"Error resolving nested references: {str(e)}") from e
+                    self.temp_tables[table_name] = {
+                        'definition': definition,
+                        'cte_name': self._get_cte_name(table_name),
+                        'type': 'CREATE_TEMP_AS',
+                        'statement': stmt
+                    }
+                    continue
+            
+            # Check for "CREATE TEMP TABLE" followed by "INSERT INTO"
+            create_temp_match = self._CREATE_TEMP_PATTERN.match(stmt)
+            if create_temp_match:
+                table_name = create_temp_match.group('table')
+                if self._is_temp_table(table_name):
+                    self.current_temp_table = table_name
+                    continue
+            
+            # Check for "INSERT INTO #temp"
+            if self.current_temp_table:
+                insert_pattern = re.compile(
+                    rf'^\s*INSERT\s+INTO\s+{re.escape(self.current_temp_table)}\s+(?P<query>SELECT.*)',
+                    re.IGNORECASE | re.DOTALL
+                )
+                insert_match = insert_pattern.match(stmt)
+                if insert_match:
+                    definition = insert_match.group('query').strip()
+                    if definition.endswith(';'):
+                        definition = definition[:-1]
+                    
+                    self.temp_tables[self.current_temp_table] = {
+                        'definition': definition,
+                        'cte_name': self._get_cte_name(self.current_temp_table),
+                        'type': 'INSERT_INTO',
+                        'statement': stmt
+                    }
+                    self.current_temp_table = None
+                    continue
 
-    def _add_main_query(self, stmt: str) -> None:
+    def _is_temp_table(self, table_name: str) -> bool:
         """
-        Replace temp references in final queries.
+        Check if a table name matches temp table patterns.
         
         Args:
-            stmt: SQL statement to process for main query
+            table_name: Table name to check
             
-        Raises:
-            ConverterError: When processing main query fails
+        Returns:
+            True if it's a temp table, False otherwise
         """
-        try:
-            processed = stmt
-            for temp, cte in self.temp_table_map.items():
-                # Use improved pattern to match temp table names correctly
-                if temp.startswith('#'):
-                    pattern = rf'(?<![a-zA-Z0-9_]){re.escape(temp)}(?![a-zA-Z0-9_])'
-                else:
-                    pattern = rf'\b{re.escape(temp)}\b'
+        return bool(re.search(self.temp_table_regex, table_name))
+
+    def _get_cte_name(self, temp_name: str) -> str:
+        """
+        Generate a CTE name from a temp table name.
+        
+        Args:
+            temp_name: Original temp table name
+            
+        Returns:
+            Cleaned name suitable for a CTE
+        """
+        return temp_name.lstrip('#').replace('.', '_')
+
+    def _extract_table_references(self, sql: str) -> Set[str]:
+        """
+        Extract all table references from SQL that match temp table patterns.
+        
+        Args:
+            sql: SQL statement to analyze
+            
+        Returns:
+            Set of referenced temp table names
+        """
+        references = set()
+        
+        # Find all things that look like tables after FROM/JOIN keywords
+        # This regex looks for FROM or JOIN followed by an optional schema, then a table name
+        pattern = re.compile(
+            r'(?:FROM|JOIN)\s+(?:\w+\.)?([^\s,;()]+)',
+            re.IGNORECASE
+        )
+        
+        for match in pattern.finditer(sql):
+            table_ref = match.group(1)
+            if self._is_temp_table(table_ref) and table_ref in self.temp_tables:
+                references.add(table_ref)
+        
+        return references
+
+    def _build_dependency_graph(self, statements: List[str]) -> Dict[str, List[str]]:
+        """
+        Build a dependency graph between temp tables.
+        
+        Args:
+            statements: List of SQL statements
+            
+        Returns:
+            Dictionary mapping temp tables to their dependencies
+        """
+        dependency_graph = {name: [] for name in self.temp_tables}
+        
+        # Process defined temp tables first
+        for temp_name, temp_info in self.temp_tables.items():
+            # Extract table references from the definition
+            definition = temp_info['definition']
+            references = self._extract_table_references(definition)
+            
+            for ref in references:
+                if ref in self.temp_tables and ref != temp_name:  # Avoid self-references
+                    dependency_graph[temp_name].append(ref)
+        
+        # Find any references in the main query
+        for stmt in statements:
+            # Skip statements that define temp tables
+            if any(info['statement'] == stmt for info in self.temp_tables.values()):
+                continue
+                
+            # Check for implicit dependencies between temp tables
+            # that are referenced in the same statement
+            references = self._extract_table_references(stmt)
+            if len(references) > 1:
+                # Multiple temp tables are referenced in this statement
+                # Create implicit dependencies based on order of reference
+                references_list = list(references)
+                for i in range(len(references_list) - 1):
+                    for j in range(i + 1, len(references_list)):
+                        ref1 = references_list[i]
+                        ref2 = references_list[j]
+                        if ref2 not in dependency_graph[ref1]:
+                            dependency_graph[ref1].append(ref2)
+        
+        return dependency_graph
+
+    def _generate_ctes(self, dependency_graph: Dict[str, List[str]]) -> List[Tuple[str, str]]:
+        """
+        Generate CTEs in proper dependency order using topological sort.
+        
+        Args:
+            dependency_graph: Dependency graph of temp tables
+            
+        Returns:
+            List of (cte_name, definition) tuples in proper order
+        """
+        # Helper function for topological sort
+        def topological_sort():
+            # Track permanent and temporary marks for cycle detection
+            permanent_mark = set()
+            temporary_mark = set()
+            result = []
+            
+            def visit(node):
+                if node in permanent_mark:
+                    return
+                if node in temporary_mark:
+                    raise ValidationError(f"Circular dependency detected involving {node}")
                     
-                processed = re.sub(
-                    pattern, 
-                    cte, 
-                    processed, 
-                    flags=re.IGNORECASE
-                )
-            self.main_queries.append(processed)
-        except Exception as e:
-            raise ConverterError(
-                f"Error processing main query: {str(e)}",
-                source=stmt[:50] + "..." if len(stmt) > 50 else stmt
-            ) from e
+                temporary_mark.add(node)
+                
+                # Visit dependencies first
+                for dependency in dependency_graph.get(node, []):
+                    visit(dependency)
+                    
+                temporary_mark.remove(node)
+                permanent_mark.add(node)
+                result.append(node)
+                
+            # Visit all nodes
+            for node in dependency_graph:
+                if node not in permanent_mark:
+                    visit(node)
+                    
+            return result
+        
+        # Get the ordered list of temp table names
+        ordered_temp_tables = topological_sort()
+        
+        # Generate CTE definitions
+        ctes = []
+        for temp_name in ordered_temp_tables:
+            # Get the cleaned name and definition
+            cte_name = self.temp_tables[temp_name]['cte_name']
+            definition = self.temp_tables[temp_name]['definition']
+            
+            # Replace references to other temp tables with their CTE names
+            for ref_temp_name in self.temp_tables:
+                if ref_temp_name != temp_name:  # Avoid self-references
+                    ref_cte_name = self.temp_tables[ref_temp_name]['cte_name']
+                    pattern = rf'\b{re.escape(ref_temp_name)}\b'
+                    definition = re.sub(pattern, ref_cte_name, definition, flags=re.IGNORECASE)
+            
+            ctes.append((cte_name, definition))
+        
+        return ctes
 
-    def _build_final_query(self) -> str:
-        """Construct final CTE query with proper formatting."""
-        try:
-            if not self.cte_definitions:
-                return '\n'.join(query.rstrip(';') for query in self.main_queries)
+    def _is_temp_definition(self, stmt: str) -> bool:
+        """
+        Check if a statement defines a temp table.
+        
+        Args:
+            stmt: SQL statement to check
+            
+        Returns:
+            True if it defines a temp table, False otherwise
+        """
+        # Check if this statement matches any of the temp table definition patterns
+        for temp_info in self.temp_tables.values():
+            if temp_info['statement'] == stmt:
+                return True
+        return False
 
-            # Use a dictionary to ensure unique CTE definitions by name
-            unique_ctes = {}
-            for name, query in self.cte_definitions:
-                # Only keep the first definition for each name
-                if name not in unique_ctes:
-                    unique_ctes[name] = query
+    def _transform_main_query(self, statements: List[str]) -> str:
+        """
+        Transform the main query by replacing temp table references with CTE names.
+        
+        Args:
+            statements: List of SQL statements
             
-            # Format each CTE definition
-            cte_clauses = []
-            for name, query in unique_ctes.items():
-                # Clean up the query
-                clean_query = query.rstrip(';')
-                cte_clauses.append(f"{name} AS (\n{self._indent(clean_query)}\n)")
+        Returns:
+            Transformed main query
+        """
+        # Filter out statements that define temp tables
+        main_statements = []
+        for stmt in statements:
+            if not self._is_temp_definition(stmt):
+                main_statements.append(stmt)
+        
+        # Replace temp table references in remaining statements
+        transformed_statements = []
+        for stmt in main_statements:
+            transformed = stmt
+            for temp_name, info in self.temp_tables.items():
+                cte_name = info['cte_name']
+                pattern = rf'\b{re.escape(temp_name)}\b'
+                transformed = re.sub(pattern, cte_name, transformed, flags=re.IGNORECASE)
+            transformed_statements.append(transformed)
+        
+        # Join statements
+        return "\n".join(stmt.rstrip(';') for stmt in transformed_statements)
+
+    def _assemble_final_query(self, ctes: List[Tuple[str, str]], main_query: str) -> str:
+        """
+        Assemble the final query with CTEs and main query.
+        
+        Args:
+            ctes: List of (cte_name, definition) tuples
+            main_query: The main query string
             
-            # Format the main query (join all main queries)
-            main_query = '\n'.join(query.rstrip(';') for query in self.main_queries)
-            
-            # Build the final query
-            return f"WITH {',\n'.join(cte_clauses)}\n{main_query}"
-        except Exception as e:
-            raise ConverterError(f"Error building final query: {str(e)}")
+        Returns:
+            Complete SQL with CTEs
+        """
+        if not ctes:
+            return main_query
+        
+        # Format each CTE with proper indentation
+        cte_clauses = []
+        for name, definition in ctes:
+            # Clean and indent the definition
+            clean_def = definition.rstrip(';')
+            indented_def = self._indent(clean_def)
+            cte_clauses.append(f"{name} AS (\n{indented_def}\n)")
+        
+        # Build the final query
+        return f"WITH {',\n'.join(cte_clauses)}\n{main_query}"
 
     def _indent(self, sql: str) -> str:
         """
