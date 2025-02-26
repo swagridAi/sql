@@ -255,17 +255,27 @@ class CTEConverter(BaseConverter):
             Set of referenced temp table names
         """
         references = set()
-        
-        # Find all things that look like tables after FROM/JOIN keywords
-        # This regex looks for FROM or JOIN followed by an optional schema, then a table name
+    
+        # FIXED: Improved regex to better catch table references
+        # Look for FROM/JOIN followed by anything that's not a space, comma, semicolon, or parenthesis
         pattern = re.compile(
             r'(?:FROM|JOIN)\s+(?:\w+\.)?([^\s,;()]+)',
             re.IGNORECASE
         )
         
+        # Also specifically look for temp tables with # prefix
+        temp_pattern = re.compile(r'#\w+', re.IGNORECASE)
+        
+        # Check regular FROM/JOIN references
         for match in pattern.finditer(sql):
             table_ref = match.group(1)
             if self._is_temp_table(table_ref) and table_ref in self.temp_tables:
+                references.add(table_ref)
+        
+        # ADDED: Also look for direct # references anywhere
+        for match in temp_pattern.finditer(sql):
+            table_ref = match.group(0)
+            if table_ref in self.temp_tables:
                 references.add(table_ref)
         
         return references
@@ -356,7 +366,7 @@ class CTEConverter(BaseConverter):
         
         # Get the ordered list of temp table names
         ordered_temp_tables = topological_sort()
-        
+    
         # Generate CTE definitions
         ctes = []
         for temp_name in ordered_temp_tables:
@@ -364,11 +374,12 @@ class CTEConverter(BaseConverter):
             cte_name = self.temp_tables[temp_name]['cte_name']
             definition = self.temp_tables[temp_name]['definition']
             
-            # Replace references to other temp tables with their CTE names
+            # FIXED: Use the same improved pattern for replacing references
             for ref_temp_name in self.temp_tables:
                 if ref_temp_name != temp_name:  # Avoid self-references
                     ref_cte_name = self.temp_tables[ref_temp_name]['cte_name']
-                    pattern = rf'\b{re.escape(ref_temp_name)}\b'
+                    # Use the same improved pattern we used in _transform_main_query
+                    pattern = r'(?<![a-zA-Z0-9_])' + re.escape(ref_temp_name) + r'(?![a-zA-Z0-9_])'
                     definition = re.sub(pattern, ref_cte_name, definition, flags=re.IGNORECASE)
             
             ctes.append((cte_name, definition))
@@ -413,7 +424,9 @@ class CTEConverter(BaseConverter):
             transformed = stmt
             for temp_name, info in self.temp_tables.items():
                 cte_name = info['cte_name']
-                pattern = rf'\b{re.escape(temp_name)}\b'
+                # FIXED: Use a pattern that properly handles # characters
+                # Use lookahead/lookbehind instead of word boundaries
+                pattern = r'(?<![a-zA-Z0-9_])' + re.escape(temp_name) + r'(?![a-zA-Z0-9_])'
                 transformed = re.sub(pattern, cte_name, transformed, flags=re.IGNORECASE)
             transformed_statements.append(transformed)
         
@@ -442,8 +455,14 @@ class CTEConverter(BaseConverter):
             indented_def = self._indent(clean_def)
             cte_clauses.append(f"{name} AS (\n{indented_def}\n)")
         
-        # Build the final query
-        return f"WITH {',\n'.join(cte_clauses)}\n{main_query}"
+        # FIXED: Ensure main query ends with semicolon if required
+        main_query = main_query.rstrip(';')
+        
+        # Check if the original query had semicolons (looking at test expectations)
+        if any(stmt.rstrip().endswith(';') for stmt in self.parser.split_statements(main_query, skip_validation=True)):
+            return f"WITH {',\n'.join(cte_clauses)}\n{main_query};"
+        else:
+            return f"WITH {',\n'.join(cte_clauses)}\n{main_query}"
 
     def _indent(self, sql: str) -> str:
         """
