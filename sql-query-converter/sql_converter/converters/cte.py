@@ -149,55 +149,53 @@ class CTEConverter(BaseConverter):
             raise ConverterError(error_msg, source=snippet) from e
 
     def _handle_referenced_temps(self) -> None:
-        """
-        Create default CTE definitions for temp tables that are referenced but not defined.
-        """
-        # Create a set of already defined CTE names
-        defined_ctes = {name for name, _ in self.cte_definitions}
+        """Create placeholders for temp tables that are referenced but not defined."""
+        # Get all CTE names that already have definitions
+        defined_cte_names = {cte_name for cte_name, _ in self.cte_definitions}
         
         for temp_name in self.referenced_temps:
-            # Get the clean CTE name for this temp table
+            # Skip if this temp table is already defined
+            if temp_name in self.defined_temps:
+                continue
+                
+            # Get the clean CTE name for this temp
             cte_name = self.temp_table_map[temp_name]
             
-            # Only add a placeholder if this CTE doesn't already exist
-            if cte_name not in defined_ctes:
-                self.logger.debug(f"Creating placeholder CTE for referenced temp table: {temp_name}")
+            # Only add if we don't already have this CTE
+            if cte_name not in defined_cte_names:
                 self.cte_definitions.append((
                     cte_name,
                     f"SELECT * FROM (SELECT 1 as placeholder) as dummy_source"
                 ))
-                # Add to defined set to prevent duplicates
-                defined_ctes.add(cte_name)
+                defined_cte_names.add(cte_name)
     
     def _reset_state(self) -> None:
         """Reset converter state between conversions."""
-        self.cte_definitions.clear()
-        self.main_queries.clear()
-        self.temp_table_map.clear()
+        self.cte_definitions = []
+        self.main_queries = []
+        self.temp_table_map = {}
         self.current_temp_table = None
-        self.referenced_temps = set()
+        self.referenced_temps = set()  # Track referenced but undefined temp tables
+        self.defined_temps = set()     # Track temp tables that have been defined
 
     def _identify_temp_references(self, sql: str) -> None:
-        """
-        Identify all temporary table references in SQL statement.
-        
-        Args:
-            sql: SQL statement to scan for temp references
-        """
+        """Identify temporary table references in SQL statement."""
         # Find all potential temp table references using the configured pattern
-        for match in re.finditer(self.temp_table_regex, sql):
+        pattern = re.compile(self.temp_table_regex, re.IGNORECASE)
+        for match in pattern.finditer(sql):
             temp_name = match.group(0)
-            # Skip if this temp table is already being tracked
-            if temp_name in self.temp_table_map:
+            
+            # Skip if this temp table is already defined
+            if temp_name in self.defined_temps:
                 continue
                 
-            # Add to temp_table_map with a clean name
-            clean_name = temp_name.lstrip('#').replace('.', '_')
-            self.temp_table_map[temp_name] = clean_name
+            # Add to temp_table_map if not already there
+            if temp_name not in self.temp_table_map:
+                clean_name = temp_name.lstrip('#').replace('.', '_')
+                self.temp_table_map[temp_name] = clean_name
             
-            # Mark this as a referenced but undefined temp table
-            if temp_name not in [name for name, _ in self.cte_definitions]:
-                self.logger.debug(f"Found reference to undefined temp table: {temp_name}")
+            # Add to referenced_temps if not already defined
+            if temp_name not in self.defined_temps:
                 self.referenced_temps.add(temp_name)
 
     def _process_statement(self, stmt: str) -> None:
@@ -290,19 +288,7 @@ class CTEConverter(BaseConverter):
             ) from e
 
     def _handle_create_temp_as(self, stmt: str) -> bool:
-        """
-        Handle CREATE TEMP TABLE AS SELECT with or without parentheses.
-        
-        Args:
-            stmt: SQL statement to check for CREATE TEMP TABLE AS
-            
-        Returns:
-            True if statement matched pattern, False otherwise
-            
-        Raises:
-            ValidationError: When CREATE TEMP TABLE AS handling fails
-        """
-        # Try both patterns
+        """Handle CREATE TEMP TABLE AS SELECT pattern."""
         match = self._CREATE_TEMP_AS_PATTERN1.match(stmt) or self._CREATE_TEMP_AS_PATTERN2.match(stmt)
         if not match:
             return False
@@ -313,14 +299,19 @@ class CTEConverter(BaseConverter):
                 return False
 
             clean_name = raw_table.lstrip('#').replace('.', '_')
-            
-            # Clean up the query - remove trailing semicolons
             query = match.group('query').strip()
             if query.endswith(';'):
                 query = query[:-1]
                 
+            # Add to defined tables and CTE definitions
+            self.defined_temps.add(raw_table)
             self.cte_definitions.append((clean_name, query))
             self.temp_table_map[raw_table] = clean_name
+            
+            # Remove from referenced if it was there
+            if raw_table in self.referenced_temps:
+                self.referenced_temps.remove(raw_table)
+                
             return True
         except Exception as e:
             raise ValidationError(
@@ -408,6 +399,9 @@ class CTEConverter(BaseConverter):
         changes_made = True
         pass_count = 0
         
+        # Add temp tables from CTE definitions to avoid treating them as undefined
+        defined_temp_tables = {name for name, _ in self.cte_definitions}
+        
         try:
             # Continue making passes until no more changes or max passes reached
             while changes_made and pass_count < max_passes:
@@ -422,6 +416,10 @@ class CTEConverter(BaseConverter):
                     
                     # Try to replace all temp table references in this CTE definition
                     for temp, cte in self.temp_table_map.items():
+                        # Skip if this is a reference to the current CTE
+                        if cte == name:
+                            continue
+                            
                         # Use improved pattern to match temp table names correctly
                         pattern = rf'\b{re.escape(temp)}\b'
                         processed_query = re.sub(
@@ -441,20 +439,31 @@ class CTEConverter(BaseConverter):
                 # Update CTE definitions for next pass
                 self.cte_definitions = updated_definitions
                 
+                # Don't look for new references in CTE definitions after initial pass
+                if pass_count > 1:
+                    continue
+                    
                 # Make sure any temp table referenced in a CTE has its own definition
+                newly_referenced_temps = set()
                 for name, query in self.cte_definitions:
+                    # Add this to defined temp tables to prevent redefinition
+                    defined_temp_tables.add(name)
+                    
                     # Look for remaining temp references
                     for match in re.finditer(r'#\w+', query):
                         temp_name = match.group(0)
-                        if temp_name not in self.temp_table_map:
+                        if temp_name not in self.temp_table_map and temp_name not in defined_temp_tables:
                             # Add this newly discovered reference
                             clean_name = temp_name.lstrip('#').replace('.', '_')
                             self.temp_table_map[temp_name] = clean_name
-                            self.referenced_temps.add(temp_name)
+                            newly_referenced_temps.add(temp_name)
                             changes_made = True
                 
-                # Handle any newly discovered references
-                self._handle_referenced_temps()
+                # Add any newly discovered references to the referenced_temps set
+                if newly_referenced_temps:
+                    self.referenced_temps.update(newly_referenced_temps)
+                    # Handle the new references
+                    self._handle_referenced_temps()
         except Exception as e:
             raise ConverterError(f"Error resolving nested references: {str(e)}") from e
 
@@ -491,42 +500,30 @@ class CTEConverter(BaseConverter):
             ) from e
 
     def _build_final_query(self) -> str:
-        """
-        Construct final CTE query with proper formatting.
-        
-        Returns:
-            Final SQL with CTEs
-        """
+        """Construct final CTE query with proper formatting."""
         try:
             if not self.cte_definitions:
-                return ';\n'.join(query.rstrip(';') for query in self.main_queries)
+                return '\n'.join(query.rstrip(';') for query in self.main_queries)
 
-            # Remove any duplicate CTE definitions by name
+            # Use a dictionary to ensure unique CTE definitions by name
             unique_ctes = {}
             for name, query in self.cte_definitions:
-                unique_ctes[name] = query
+                # Only keep the first definition for each name
+                if name not in unique_ctes:
+                    unique_ctes[name] = query
             
-            # Format each unique CTE definition
+            # Format each CTE definition
             cte_clauses = []
             for name, query in unique_ctes.items():
-                # Ensure query doesn't have trailing semicolons
+                # Clean up the query
                 clean_query = query.rstrip(';')
                 cte_clauses.append(f"{name} AS (\n{self._indent(clean_query)}\n)")
             
-            # Format each main query 
-            formatted_main_queries = []
-            for i, query in enumerate(self.main_queries):
-                # Remove any trailing semicolons
-                clean_query = query.rstrip(';')
-                # Add back semicolon if needed
-                if i < len(self.main_queries) - 1:
-                    formatted_main_queries.append(f"{clean_query};")
-                else:
-                    formatted_main_queries.append(clean_query)
+            # Format the main query (join all main queries)
+            main_query = '\n'.join(query.rstrip(';') for query in self.main_queries)
             
             # Build the final query
-            joined_queries = " ".join(formatted_main_queries)
-            return f"WITH {',\n'.join(cte_clauses)}\n{joined_queries}"
+            return f"WITH {',\n'.join(cte_clauses)}\n{main_query}"
         except Exception as e:
             raise ConverterError(f"Error building final query: {str(e)}")
 
