@@ -1,12 +1,35 @@
 import pytest
+import os
 from pathlib import Path
 from sql_converter.cli import SQLConverterApp
-from sql_converter.converters.cte import CTEConverter  # Add missing import
-from sql_converter.utils.config import ConfigManager
+from sql_converter.converters.cte import CTEConverter
 
 def test_full_conversion(tmp_path, config_manager):
-    # Fix the path to match actual project structure
-    input_dir = Path("sql-query-converter/sql_converter/tests/fixtures/input")
+    # Find the project root directory
+    # Start from the current file and walk up until we find the sql_converter directory
+    current_dir = Path(__file__).resolve().parent
+    
+    # Find the root directory that contains sql_converter
+    root_dir = None
+    search_dir = current_dir
+    while search_dir != search_dir.parent:  # Stop at filesystem root
+        if (search_dir / "sql_converter" / "tests" / "fixtures").exists():
+            root_dir = search_dir
+            break
+        search_dir = search_dir.parent
+    
+    assert root_dir is not None, "Could not find project root directory"
+    
+    # Build paths based on the found root directory
+    fixtures_dir = root_dir / "sql_converter" / "tests" / "fixtures" / "input"
+    expected_dir = root_dir / "sql_converter" / "tests" / "fixtures" / "expected"
+    
+    print(f"Project root directory: {root_dir}")
+    print(f"Looking for fixtures at: {fixtures_dir}")
+    
+    assert fixtures_dir.exists(), f"Fixtures directory not found at {fixtures_dir}"
+    assert expected_dir.exists(), f"Expected directory not found at {expected_dir}"
+    
     output_dir = tmp_path / "output"
     output_dir.mkdir(exist_ok=True)
     
@@ -14,17 +37,16 @@ def test_full_conversion(tmp_path, config_manager):
         converters={'cte': CTEConverter()},
         config=config_manager.config
     )
-    app.process_directory(input_dir, output_dir, ['cte'])
+    app.process_directory(fixtures_dir, output_dir, ['cte'])
     
     # Verify all files were converted
-    input_files = list(input_dir.glob("**/*.sql"))
+    input_files = list(fixtures_dir.glob("**/*.sql"))
     output_files = list(output_dir.glob("**/*.sql"))
     assert len(output_files) > 0
     
     # Compare with expected results but normalize whitespace
-    expected_dir = Path("sql-query-converter/sql_converter/tests/fixtures/expected")
     for input_file in input_files:
-        relative = input_file.relative_to(input_dir)
+        relative = input_file.relative_to(fixtures_dir)
         output_file = output_dir / relative
         expected_file = expected_dir / relative
         
