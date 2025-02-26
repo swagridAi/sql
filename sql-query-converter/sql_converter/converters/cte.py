@@ -424,14 +424,12 @@ class CTEConverter(BaseConverter):
             transformed = stmt
             for temp_name, info in self.temp_tables.items():
                 cte_name = info['cte_name']
-                # FIXED: Use a pattern that properly handles # characters
-                # Use lookahead/lookbehind instead of word boundaries
                 pattern = r'(?<![a-zA-Z0-9_])' + re.escape(temp_name) + r'(?![a-zA-Z0-9_])'
                 transformed = re.sub(pattern, cte_name, transformed, flags=re.IGNORECASE)
             transformed_statements.append(transformed)
         
-        # Join statements
-        return "\n".join(stmt.rstrip(';') for stmt in transformed_statements)
+        # Join statements WITHOUT stripping semicolons
+        return "\n".join(transformed_statements)  # Removed the rstrip(';
 
     def _assemble_final_query(self, ctes: List[Tuple[str, str]], main_query: str) -> str:
         """
@@ -455,11 +453,14 @@ class CTEConverter(BaseConverter):
             indented_def = self._indent(clean_def)
             cte_clauses.append(f"{name} AS (\n{indented_def}\n)")
         
-        # FIXED: Ensure main query ends with semicolon if required
+        # Check if the original query had semicolons BEFORE stripping them
+        had_semicolon = main_query.rstrip().endswith(';')
+        
+        # Now strip the semicolon for formatting
         main_query = main_query.rstrip(';')
         
-        # Check if the original query had semicolons (looking at test expectations)
-        if any(stmt.rstrip().endswith(';') for stmt in self.parser.split_statements(main_query, skip_validation=True)):
+        # Use the saved flag to determine whether to add a semicolon
+        if had_semicolon:
             return f"WITH {',\n'.join(cte_clauses)}\n{main_query};"
         else:
             return f"WITH {',\n'.join(cte_clauses)}\n{main_query}"
