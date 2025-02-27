@@ -66,8 +66,6 @@ class SQLParser:
                 dialect='tsql',  # Always use T-SQL dialect
                 error_level='raise',  # Ensure errors are raised for invalid syntax
                 # T-SQL specific options
-                handle_brackets=True,  # [schema].[table] style identifiers
-                identify_variables=True,  # @variable style variables
                 #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
             )
             
