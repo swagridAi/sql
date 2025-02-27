@@ -1,16 +1,444 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="8" skipped="0" tests="13" time="0.325" timestamp="2025-02-28T08:09:35.987209+11:00" hostname="DESKTOP-C1SG7NO"><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_parser_initialization" time="0.002"><failure message="AssertionError: assert None == 'ansi'&#10; +  where None = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280297F0&gt;.dialect">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E62641EC30&gt;
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="13" skipped="0" tests="13" time="1.064" timestamp="2025-02-28T09:10:11.564647+11:00" hostname="DESKTOP-C1SG7NO"><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_parser_initialization" time="0.002"><failure message="AssertionError: assert 'tsql' == 'ansi'&#10;  &#10;  - ansi&#10;  + tsql">self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887046A20&gt;
 
     def test_parser_initialization(self):
         """Test that the parser initializes with different dialects."""
         # Default initialization
         parser = SQLParser()
-        assert parser.dialect_name == 'ansi'
-&gt;       assert parser.dialect == 'ansi'
-E       AssertionError: assert None == 'ansi'
-E        +  where None = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280297F0&gt;.dialect
+&gt;       assert parser.dialect_name == 'ansi'
+E       AssertionError: assert 'tsql' == 'ansi'
+E         
+E         - ansi
+E         + tsql
 
-sql_converter\tests\unit\parsers\test_sql_parser.py:21: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_basic_parsing" time="0.001" /><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_multi_statement_parsing" time="0.004" /><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_statement_splitting" time="0.002"><failure message="AssertionError: assert 'Comment' not in '/* Comment */ INSERT INTO'&#10;  &#10;  'Comment' is contained here:&#10;    /* Comment */ INSERT INTO&#10;  ?    +++++++">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E62802A1E0&gt;
-sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280294F0&gt;
+sql_converter\tests\unit\parsers\test_sql_parser.py:20: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_basic_parsing" time="0.009"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT * FROM users WHERE id = 1;]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B36180&gt;
+sql = 'SELECT * FROM users WHERE id = 1;'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887B36B10&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887AEF380&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B36180&gt;
+
+    def test_basic_parsing(self, sql_parser):
+        """Test basic SQL parsing capabilities."""
+        sql = "SELECT * FROM users WHERE id = 1;"
+    
+        # Parse the SQL into AST expressions
+&gt;       expressions = sql_parser.parse(sql)
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B36180&gt;
+sql = 'SELECT * FROM users WHERE id = 1;'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT * FROM users WHERE id = 1;]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_multi_statement_parsing" time="0.001"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: &#10;        SELECT * FROM users;&#10;        UPDATE users SET status = 'active' WHERE id = 1;&#10;        ]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887AEE3F0&gt;
+sql = "\n        SELECT * FROM users;\n        UPDATE users SET status = 'active' WHERE id = 1;\n        "
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887AEE390&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887AEF500&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887AEE3F0&gt;
+
+    def test_multi_statement_parsing(self, sql_parser):
+        """Test parsing multiple SQL statements."""
+        sql = """
+        SELECT * FROM users;
+        UPDATE users SET status = 'active' WHERE id = 1;
+        """
+    
+        # Parse multiple statements
+&gt;       expressions = sql_parser.parse(sql)
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887AEE3F0&gt;
+sql = "\n        SELECT * FROM users;\n        UPDATE users SET status = 'active' WHERE id = 1;\n        "
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: 
+E                       SELECT * FROM users;
+E                       UPDATE users SET status = 'active' WHERE id = 1;
+E                       ]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_statement_splitting" time="0.002"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: &#10;        SELECT * FROM table; &#10;        -- Comment&#10;        INSERT INTO #temp VALUES (1);&#10;        ]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B87770&gt;
+sql = '\n        SELECT * FROM table; \n        -- Comment\n        INSERT INTO #temp VALUES (1);\n        '
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887A8FD70&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887AEF680&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B87770&gt;
 
     def test_statement_splitting(self, sql_parser):
         """Test splitting SQL into individual statements."""
@@ -21,24 +449,327 @@ sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6
         """
     
         # Split statements using the parser
-        statements = sql_parser.split_statements(sql)
-    
-        # Verify the results
-        assert len(statements) == 2
-        assert "SELECT" in statements[0]
-        assert "INSERT" in statements[1]
-    
-        # Verify comments are handled correctly
-        assert "Comment" not in statements[0]
-&gt;       assert "Comment" not in statements[1]
-E       AssertionError: assert 'Comment' not in '/* Comment */ INSERT INTO'
-E         
-E         'Comment' is contained here:
-E           /* Comment */ INSERT INTO
-E         ?    +++++++
+&gt;       statements = sql_parser.split_statements(sql)
 
-sql_converter\tests\unit\parsers\test_sql_parser.py:92: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_dialect_specific_parsing" time="0.041" /><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_validate_sql" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'sql_converter.exceptions.SQLSyntaxError'&gt;">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E6280298E0&gt;
-sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E626FB21E0&gt;
+sql_converter\tests\unit\parsers\test_sql_parser.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+sql_converter\parsers\sql_parser.py:220: in split_statements
+    expressions = self.parse(sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B87770&gt;
+sql = '\n        SELECT * FROM table; \n        -- Comment\n        INSERT INTO #temp VALUES (1);\n        '
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: 
+E                       SELECT * FROM table; 
+E                       -- Comment
+E                       INSERT INTO #temp VALUES (1);
+E                       ]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_dialect_specific_parsing" time="0.001"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT [col.name] FROM [dbo].[table];]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B862D0&gt;
+sql = 'SELECT [col.name] FROM [dbo].[table];'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887B87440&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887AEF6B0&gt;
+tsql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B862D0&gt;
+mysql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B87170&gt;
+
+    def test_dialect_specific_parsing(self, tsql_parser, mysql_parser):
+        """Test dialect-specific SQL features."""
+        # Test T-SQL specific features
+        tsql = "SELECT [col.name] FROM [dbo].[table];"
+    
+&gt;       tsql_expressions = tsql_parser.parse(tsql)
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:99: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B862D0&gt;
+sql = 'SELECT [col.name] FROM [dbo].[table];'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT [col.name] FROM [dbo].[table];]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_validate_sql" time="0.002"><failure message="Failed: DID NOT RAISE &lt;class 'sql_converter.exceptions.SQLSyntaxError'&gt;">self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887AEF950&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B87530&gt;
 
     def test_validate_sql(self, sql_parser):
         """Test SQL validation capabilities."""
@@ -51,19 +782,389 @@ sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6
 &gt;       with pytest.raises(SQLSyntaxError):
 E       Failed: DID NOT RAISE &lt;class 'sql_converter.exceptions.SQLSyntaxError'&gt;
 
-sql_converter\tests\unit\parsers\test_sql_parser.py:120: Failed</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_syntax_error_detection" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'sql_converter.exceptions.SQLSyntaxError'&gt;">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E628029CA0&gt;
-sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A3680&gt;
+sql_converter\tests\unit\parsers\test_sql_parser.py:120: Failed</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_syntax_error_detection" time="0.001"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT FROM users;]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B87E90&gt;, sql = 'SELECT FROM users;'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887B85AF0&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887AEFAD0&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B87E90&gt;
 
     def test_syntax_error_detection(self, sql_parser):
         """Test that syntax errors are properly detected and reported."""
         invalid_sql = "SELECT FROM users;"
     
         # This should raise a SQLSyntaxError
-&gt;       with pytest.raises(SQLSyntaxError) as excinfo:
-E       Failed: DID NOT RAISE &lt;class 'sql_converter.exceptions.SQLSyntaxError'&gt;
+        with pytest.raises(SQLSyntaxError) as excinfo:
+&gt;           sql_parser.parse(invalid_sql)
 
-sql_converter\tests\unit\parsers\test_sql_parser.py:133: Failed</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_find_table_references" time="0.003" /><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_find_temp_tables" time="0.004"><failure message="AssertionError: assert '#temp1' in []">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E62802A030&gt;
-sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A0890&gt;
+sql_converter\tests\unit\parsers\test_sql_parser.py:134: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B87E90&gt;, sql = 'SELECT FROM users;'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT FROM users;]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_find_table_references" time="0.001"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: &#10;        SELECT u.id, o.order_id &#10;        FROM users u&#10;        JOIN orders o ON u.id = o.user_id&#10;   ...]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887BDEFC0&gt;
+sql = '\n        SELECT u.id, o.order_id \n        FROM users u\n        JOIN orders o ON u.id = o.user_id\n        LEFT JOIN profiles p ON u.id = p.user_id;\n        '
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887BDFDA0&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887AEFC50&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887BDEFC0&gt;
+
+    def test_find_table_references(self, sql_parser):
+        """Test finding table references in SQL."""
+        sql = """
+        SELECT u.id, o.order_id
+        FROM users u
+        JOIN orders o ON u.id = o.user_id
+        LEFT JOIN profiles p ON u.id = p.user_id;
+        """
+    
+        # Find table references
+&gt;       table_refs = sql_parser.find_table_references(sql)
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+sql_converter\parsers\sql_parser.py:368: in find_table_references
+    expressions = self.parse(sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887BDEFC0&gt;
+sql = '\n        SELECT u.id, o.order_id \n        FROM users u\n        JOIN orders o ON u.id = o.user_id\n        LEFT JOIN profiles p ON u.id = p.user_id;\n        '
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: 
+E                       SELECT u.id, o.order_id 
+E                       FROM users u
+E                       JOIN orders o ON u.id = o.user_id
+E                  ...]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_find_temp_tables" time="0.003"><failure message="assert False&#10; +  where False = any(&lt;generator object TestSQLParser.test_find_temp_tables.&lt;locals&gt;.&lt;genexpr&gt; at 0x000001788934C2B0&gt;)">self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887AEFDD0&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887BDD1C0&gt;
 
     def test_find_temp_tables(self, sql_parser):
         """Test finding temporary tables in SQL."""
@@ -78,55 +1179,441 @@ sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6
     
         # Verify we found both temp tables
         temp_names = [info['name'] for info in temp_tables]
-&gt;       assert '#temp1' in temp_names
-E       AssertionError: assert '#temp1' in []
+        assert '#temp1' in temp_names
+        assert '#temp2' in temp_names
+    
+        # Verify types are correct
+        types = {info['name']: info['type'] for info in temp_tables}
+        assert types['#temp1'] == 'SELECT_INTO'
+    
+        # At least one of the temp tables should be recognized as CREATE_TEMP type
+&gt;       assert any(t['type'] in ('CREATE_TEMP', 'CREATE_TEMP_AS') for t in temp_tables)
+E       assert False
+E        +  where False = any(&lt;generator object TestSQLParser.test_find_temp_tables.&lt;locals&gt;.&lt;genexpr&gt; at 0x000001788934C2B0&gt;)
 
-sql_converter\tests\unit\parsers\test_sql_parser.py:182: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_replace_references" time="0.001"><failure message="AssertionError: assert 'cte_temp' in 'SELECT * FROM'">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E6280295E0&gt;
-sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A3830&gt;
+sql_converter\tests\unit\parsers\test_sql_parser.py:190: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_replace_references" time="0.001"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT * FROM #temp WHERE id = 1;]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887BDCA10&gt;
+sql = 'SELECT * FROM #temp WHERE id = 1;'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887BDCB00&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887AEFF50&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887BDCA10&gt;
 
     def test_replace_references(self, sql_parser):
         """Test replacing table references in an AST."""
         sql = "SELECT * FROM #temp WHERE id = 1;"
     
         # Parse SQL
-        expressions = sql_parser.parse(sql)
-    
-        # Replace references
-        replacements = {'#temp': 'cte_temp'}
-        modified = sql_parser.replace_references(expressions[0], replacements)
-    
-        # Convert back to SQL and verify the replacement
-        modified_sql = sql_parser.to_sql(modified)
-        assert '#temp' not in modified_sql
-&gt;       assert 'cte_temp' in modified_sql
-E       AssertionError: assert 'cte_temp' in 'SELECT * FROM'
+&gt;       expressions = sql_parser.parse(sql)
 
-sql_converter\tests\unit\parsers\test_sql_parser.py:206: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_generate_cte" time="0.001"><failure message="AssertionError: assert 'WITH user_cte AS' in 'WITH  AS (USER_CTE)'&#10; +  where 'WITH  AS (USER_CTE)' = &lt;built-in method upper of str object at 0x000001E628161830&gt;()&#10; +    where &lt;built-in method upper of str object at 0x000001E628161830&gt; = 'WITH  AS (user_cte)'.upper">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E6280299A0&gt;
-sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A17F0&gt;
+sql_converter\tests\unit\parsers\test_sql_parser.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887BDCA10&gt;
+sql = 'SELECT * FROM #temp WHERE id = 1;'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT * FROM #temp WHERE id = 1;]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_generate_cte" time="0.001"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT * FROM users WHERE id = 1;]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887050710&gt;
+sql = 'SELECT * FROM users WHERE id = 1;'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887050A40&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887B34110&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887050710&gt;
 
     def test_generate_cte(self, sql_parser):
         """Test generating a CTE from a subquery."""
         sql = "SELECT * FROM users WHERE id = 1;"
     
         # Parse SQL
-        expressions = sql_parser.parse(sql)
-        select_expr = expressions[0]
-    
-        # Generate a CTE
-        cte = sql_parser.generate_cte('user_cte', select_expr)
-    
-        # Verify result is a With expression
-        assert isinstance(cte, exp.With)
-    
-        # Verify CTE name and definition is in the SQL
-        cte_sql = sql_parser.to_sql(cte)
-&gt;       assert 'WITH user_cte AS' in cte_sql.upper()
-E       AssertionError: assert 'WITH user_cte AS' in 'WITH  AS (USER_CTE)'
-E        +  where 'WITH  AS (USER_CTE)' = &lt;built-in method upper of str object at 0x000001E628161830&gt;()
-E        +    where &lt;built-in method upper of str object at 0x000001E628161830&gt; = 'WITH  AS (user_cte)'.upper
+&gt;       expressions = sql_parser.parse(sql)
 
-sql_converter\tests\unit\parsers\test_sql_parser.py:228: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_comment_handling" time="0.003"><failure message="assert 2 == 1&#10; +  where 2 = len([Select(\n  expressions=[\n    Star()],\n  from=From(\n    this=Table(\n      this=Identifier(this=users, quoted=False))),\n  _comments=[\n    This is a comment]), Semicolon(_comments=[\n    This is another comment ,\n    This is a final comment])])">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E628029AC0&gt;
-sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A2540&gt;
+sql_converter\tests\unit\parsers\test_sql_parser.py:217: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887050710&gt;
+sql = 'SELECT * FROM users WHERE id = 1;'
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT * FROM users WHERE id = 1;]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_comment_handling" time="0.001"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: &#10;        -- This is a comment&#10;        SELECT * FROM users; /* This is another comment */&#10;        -- ...]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B874D0&gt;
+sql = '\n        -- This is a comment\n        SELECT * FROM users; /* This is another comment */\n        -- This is a final comment\n        '
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887B872F0&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887B34290&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B874D0&gt;
 
     def test_comment_handling(self, sql_parser):
         """Test that comments are properly handled."""
@@ -137,11 +1624,318 @@ sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6
         """
     
         # Parse SQL
-        expressions = sql_parser.parse(sql)
-    
-        # Verify the comment doesn't interfere with the parse
-&gt;       assert len(expressions) == 1
-E       assert 2 == 1
-E        +  where 2 = len([Select(\n  expressions=[\n    Star()],\n  from=From(\n    this=Table(\n      this=Identifier(this=users, quoted=False))),\n  _comments=[\n    This is a comment]), Semicolon(_comments=[\n    This is another comment ,\n    This is a final comment])])
+&gt;       expressions = sql_parser.parse(sql)
 
-sql_converter\tests\unit\parsers\test_sql_parser.py:243: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_to_sql_format_consistency" time="0.002" /></testsuite></testsuites>
+sql_converter\tests\unit\parsers\test_sql_parser.py:240: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B874D0&gt;
+sql = '\n        -- This is a comment\n        SELECT * FROM users; /* This is another comment */\n        -- This is a final comment\n        '
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: 
+E                       -- This is a comment
+E                       SELECT * FROM users; /* This is another comment */
+E                       -- ...]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_to_sql_format_consistency" time="0.002"><failure message="sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT id, name FROM users WHERE status = 'active' ORDER BY name;]">self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B36450&gt;
+sql = "SELECT id, name FROM users WHERE status = 'active' ORDER BY name;"
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+&gt;           expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+
+sql_converter\parsers\sql_parser.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\__init__.py:102: in parse
+    return Dialect.get_or_raise(read or dialect).parse(sql, **opts)
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:991: in parse
+    return self.parser(**opts).parse(self.tokenize(sql), sql)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sqlglot.dialects.tsql.TSQL object at 0x0000017887B36CC0&gt;
+opts = {'error_level': 'raise', 'handle_brackets': True, 'identify_variables': True}
+
+    def parser(self, **opts) -&gt; Parser:
+&gt;       return self.parser_class(dialect=self, **opts)
+E       TypeError: Parser.__init__() got an unexpected keyword argument 'handle_brackets'
+
+..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlglot\dialects\dialect.py:1019: TypeError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;test_sql_parser.TestSQLParser object at 0x0000017887B34440&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B36450&gt;
+
+    def test_to_sql_format_consistency(self, sql_parser):
+        """Test that to_sql produces consistent SQL format."""
+        sql = "SELECT id, name FROM users WHERE status = 'active' ORDER BY name;"
+    
+        # Parse and convert back to SQL
+&gt;       expressions = sql_parser.parse(sql)
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:258: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x0000017887B36450&gt;
+sql = "SELECT id, name FROM users WHERE status = 'active' ORDER BY name;"
+
+    def parse(self, sql: str) -&gt; List[exp.Expression]:
+        """
+        Parse SQL into AST expressions, optimized for T-SQL.
+    
+        Args:
+            sql: SQL code to parse
+    
+        Returns:
+            List of sqlglot Expression objects representing the parsed SQL
+    
+        Raises:
+            SQLSyntaxError: When SQL contains syntax errors
+            ParserError: When the parser encounters an error
+        """
+        if not sql or not sql.strip():
+            raise SQLSyntaxError("Empty SQL statement", position=0, line=1)
+    
+        try:
+            # Parse the SQL into a list of expression trees using T-SQL dialect
+            expressions = sqlglot.parse(
+                sql,
+                dialect='tsql',  # Always use T-SQL dialect
+                error_level='raise',  # Ensure errors are raised for invalid syntax
+                # T-SQL specific options
+                handle_brackets=True,  # [schema].[table] style identifiers
+                identify_variables=True,  # @variable style variables
+                #detect_additional_semicolons=True  # Handle extra semicolons (if supported by sqlglot version)
+            )
+    
+            # Filter out expression types that should not be treated as separate statements
+            # Semicolons are sometimes parsed as separate expressions but aren't meaningful statements
+            filtered_expressions = []
+            for expr in expressions:
+                if isinstance(expr, exp.Semicolon):
+                    # Skip standalone semicolons
+                    continue
+    
+                # Keep track of potential comments
+                if hasattr(expr, '_comments') and expr._comments:
+                    # Leave comments attached to expressions but don't count them as separate expressions
+                    pass
+    
+                filtered_expressions.append(expr)
+    
+            # Some versions of sqlglot might parse T-SQL GO batch separator - filter if present
+            filtered_expressions = [expr for expr in filtered_expressions
+                                if not (hasattr(expr, 'this') and
+                                        getattr(expr, 'this', None) == 'GO')]
+    
+            # Post-process expressions if needed
+            for expr in filtered_expressions:
+                # Handle any T-SQL specific post-processing
+                # For example, resolving table variables or temp tables
+                pass
+    
+            self.logger.debug(f"Successfully parsed {len(filtered_expressions)} T-SQL statements")
+    
+            # Perform validation on the parsed expressions
+            for expr in filtered_expressions:
+                # Verify essential components for SQL statements
+                if isinstance(expr, exp.Select) and not expr.find(exp.From):
+                    # SELECT statements should have FROM clause in T-SQL (except in specific cases)
+                    # This helps catch syntax errors that sqlglot might miss
+                    if not expr.find(exp.Where) and not expr.expressions:
+                        raise SQLSyntaxError("SELECT statement missing FROM clause",
+                                            ast_node=expr)
+    
+            return filtered_expressions
+    
+        except sqlglot.ParseError as e:
+            # Extract position information if available
+            position = getattr(e, 'position', None)
+            line = None
+            column = None
+    
+            if position:
+                # Calculate line and column from position
+                lines = sql[:position].split('\n')
+                line = len(lines)
+                column = len(lines[-1]) + 1 if lines else position
+    
+            # Raise our custom exception with detailed info
+            raise SQLSyntaxError(
+                f"T-SQL syntax error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql,
+                position=position,
+                line=line,
+                column=column
+            ) from e
+    
+        except sqlglot.TokenError as e:
+            # Handle tokenization errors
+            raise SQLSyntaxError(
+                f"T-SQL tokenization error: {str(e)}",
+                source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+            ) from e
+    
+        except Exception as e:
+            if isinstance(e, SQLSyntaxError):
+                # Re-raise existing SQLSyntaxError
+                raise
+    
+            # Handle any other unexpected errors
+            error_type = type(e).__name__
+            error_msg = str(e)
+    
+            self.logger.error(f"Error parsing T-SQL ({error_type}): {error_msg}")
+    
+            # Handle specific error types with more helpful messages
+            if "bracket" in error_msg.lower() or "identifier" in error_msg.lower():
+                # Could be an issue with T-SQL bracket identifiers
+                context = f"Check for unbalanced brackets [] in table or column names"
+&gt;               raise ParserError(
+                    f"Error parsing T-SQL identifiers: {error_msg}. {context}",
+                    source=sql[:100] + '...' if len(sql) &gt; 100 else sql
+                ) from e
+E               sql_converter.exceptions.ParserError: Parser error: Error parsing T-SQL identifiers: Parser.__init__() got an unexpected keyword argument 'handle_brackets'. Check for unbalanced brackets [] in table or column names [Source: SELECT id, name FROM users WHERE status = 'active' ORDER BY name;]
+
+sql_converter\parsers\sql_parser.py:157: ParserError</failure></testcase></testsuite></testsuites>
