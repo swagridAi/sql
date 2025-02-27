@@ -24,7 +24,7 @@ class SQLParser:
     
     # Map our dialect names to sqlglot dialects
     DIALECT_MAP = {
-        'ansi': 'ansi',
+        'ansi': None,  # Use SQLGlot default dialect (no specific dialect)
         'tsql': 'tsql',
         'mysql': 'mysql',
         'postgresql': 'postgres',
@@ -45,9 +45,9 @@ class SQLParser:
         self.dialect_name = dialect.lower()
         self.logger = logging.getLogger(__name__)
         
-        # Map to sqlglot dialect
-        self.dialect = self.DIALECT_MAP.get(self.dialect_name, 'ansi')
-        self.logger.debug(f"Initialized parser with dialect: {self.dialect}")
+        # Map to sqlglot dialect (can be None for default dialect)
+        self.dialect = self.DIALECT_MAP.get(self.dialect_name, None)
+        self.logger.debug(f"Initialized parser with dialect: {self.dialect or 'default'}")
 
     def parse(self, sql: str) -> List[exp.Expression]:
         """
@@ -64,8 +64,11 @@ class SQLParser:
             ParserError: When the parser encounters an error
         """
         try:
-            # Parse the SQL into a list of expression trees
-            expressions = parse(sql, dialect=self.dialect, error_level='raise')
+            # Parse the SQL into a list of expression trees - pass dialect only if not None
+            if self.dialect:
+                expressions = parse(sql, dialect=self.dialect, error_level='raise')
+            else:
+                expressions = parse(sql, error_level='raise')  # Use SQLGlot default dialect
             return expressions
         except ParseError as e:
             # Extract position information if available
@@ -188,8 +191,11 @@ class SQLParser:
             ParserError: When tokenization fails
         """
         try:
-            # Use sqlglot's tokenizer
-            tokens = sqlglot.tokenize(sql, dialect=self.dialect)
+            # Use sqlglot's tokenizer with appropriate dialect handling
+            if self.dialect:
+                tokens = sqlglot.tokenize(sql, dialect=self.dialect)
+            else:
+                tokens = sqlglot.tokenize(sql)  # Use default dialect
             
             for token in tokens:
                 # Map sqlglot token types to our expected types
@@ -470,7 +476,10 @@ class SQLParser:
         Returns:
             SQL string
         """
-        return expr.sql(dialect=self.dialect)
+        if self.dialect:
+            return expr.sql(dialect=self.dialect)
+        else:
+            return expr.sql()  # Use default dialect
 
     def generate_cte(self, name: str, definition: exp.Expression) -> exp.With:
         """

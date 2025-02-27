@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="8" skipped="0" tests="13" time="0.325" timestamp="2025-02-28T08:09:35.987209+11:00" hostname="DESKTOP-C1SG7NO"><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_parser_initialization" time="0.002"><failure message="AssertionError: assert None == 'ansi'&#10; +  where None = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280297F0&gt;.dialect">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E62641EC30&gt;
+
+    def test_parser_initialization(self):
+        """Test that the parser initializes with different dialects."""
+        # Default initialization
+        parser = SQLParser()
+        assert parser.dialect_name == 'ansi'
+&gt;       assert parser.dialect == 'ansi'
+E       AssertionError: assert None == 'ansi'
+E        +  where None = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280297F0&gt;.dialect
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:21: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_basic_parsing" time="0.001" /><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_multi_statement_parsing" time="0.004" /><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_statement_splitting" time="0.002"><failure message="AssertionError: assert 'Comment' not in '/* Comment */ INSERT INTO'&#10;  &#10;  'Comment' is contained here:&#10;    /* Comment */ INSERT INTO&#10;  ?    +++++++">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E62802A1E0&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280294F0&gt;
+
+    def test_statement_splitting(self, sql_parser):
+        """Test splitting SQL into individual statements."""
+        sql = """
+        SELECT * FROM table;
+        -- Comment
+        INSERT INTO #temp VALUES (1);
+        """
+    
+        # Split statements using the parser
+        statements = sql_parser.split_statements(sql)
+    
+        # Verify the results
+        assert len(statements) == 2
+        assert "SELECT" in statements[0]
+        assert "INSERT" in statements[1]
+    
+        # Verify comments are handled correctly
+        assert "Comment" not in statements[0]
+&gt;       assert "Comment" not in statements[1]
+E       AssertionError: assert 'Comment' not in '/* Comment */ INSERT INTO'
+E         
+E         'Comment' is contained here:
+E           /* Comment */ INSERT INTO
+E         ?    +++++++
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:92: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_dialect_specific_parsing" time="0.041" /><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_validate_sql" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'sql_converter.exceptions.SQLSyntaxError'&gt;">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E6280298E0&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E626FB21E0&gt;
+
+    def test_validate_sql(self, sql_parser):
+        """Test SQL validation capabilities."""
+        # Test valid SQL
+        valid_sql = "SELECT * FROM users WHERE id = 1;"
+        sql_parser.validate_sql(valid_sql)  # Should not raise
+    
+        # Test invalid SQL
+        invalid_sql = "SELECT FROM WHERE;"
+&gt;       with pytest.raises(SQLSyntaxError):
+E       Failed: DID NOT RAISE &lt;class 'sql_converter.exceptions.SQLSyntaxError'&gt;
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:120: Failed</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_syntax_error_detection" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'sql_converter.exceptions.SQLSyntaxError'&gt;">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E628029CA0&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A3680&gt;
+
+    def test_syntax_error_detection(self, sql_parser):
+        """Test that syntax errors are properly detected and reported."""
+        invalid_sql = "SELECT FROM users;"
+    
+        # This should raise a SQLSyntaxError
+&gt;       with pytest.raises(SQLSyntaxError) as excinfo:
+E       Failed: DID NOT RAISE &lt;class 'sql_converter.exceptions.SQLSyntaxError'&gt;
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:133: Failed</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_find_table_references" time="0.003" /><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_find_temp_tables" time="0.004"><failure message="AssertionError: assert '#temp1' in []">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E62802A030&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A0890&gt;
+
+    def test_find_temp_tables(self, sql_parser):
+        """Test finding temporary tables in SQL."""
+        sql = """
+        SELECT * INTO #temp1 FROM users;
+        CREATE TEMP TABLE #temp2 AS SELECT * FROM orders;
+        SELECT t1.id, t2.order_id FROM #temp1 t1 JOIN #temp2 t2 ON t1.id = t2.user_id;
+        """
+    
+        # Find temp tables with patterns
+        temp_tables = sql_parser.find_temp_tables(sql, ['#.*'])
+    
+        # Verify we found both temp tables
+        temp_names = [info['name'] for info in temp_tables]
+&gt;       assert '#temp1' in temp_names
+E       AssertionError: assert '#temp1' in []
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:182: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_replace_references" time="0.001"><failure message="AssertionError: assert 'cte_temp' in 'SELECT * FROM'">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E6280295E0&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A3830&gt;
+
+    def test_replace_references(self, sql_parser):
+        """Test replacing table references in an AST."""
+        sql = "SELECT * FROM #temp WHERE id = 1;"
+    
+        # Parse SQL
+        expressions = sql_parser.parse(sql)
+    
+        # Replace references
+        replacements = {'#temp': 'cte_temp'}
+        modified = sql_parser.replace_references(expressions[0], replacements)
+    
+        # Convert back to SQL and verify the replacement
+        modified_sql = sql_parser.to_sql(modified)
+        assert '#temp' not in modified_sql
+&gt;       assert 'cte_temp' in modified_sql
+E       AssertionError: assert 'cte_temp' in 'SELECT * FROM'
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:206: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_generate_cte" time="0.001"><failure message="AssertionError: assert 'WITH user_cte AS' in 'WITH  AS (USER_CTE)'&#10; +  where 'WITH  AS (USER_CTE)' = &lt;built-in method upper of str object at 0x000001E628161830&gt;()&#10; +    where &lt;built-in method upper of str object at 0x000001E628161830&gt; = 'WITH  AS (user_cte)'.upper">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E6280299A0&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A17F0&gt;
+
+    def test_generate_cte(self, sql_parser):
+        """Test generating a CTE from a subquery."""
+        sql = "SELECT * FROM users WHERE id = 1;"
+    
+        # Parse SQL
+        expressions = sql_parser.parse(sql)
+        select_expr = expressions[0]
+    
+        # Generate a CTE
+        cte = sql_parser.generate_cte('user_cte', select_expr)
+    
+        # Verify result is a With expression
+        assert isinstance(cte, exp.With)
+    
+        # Verify CTE name and definition is in the SQL
+        cte_sql = sql_parser.to_sql(cte)
+&gt;       assert 'WITH user_cte AS' in cte_sql.upper()
+E       AssertionError: assert 'WITH user_cte AS' in 'WITH  AS (USER_CTE)'
+E        +  where 'WITH  AS (USER_CTE)' = &lt;built-in method upper of str object at 0x000001E628161830&gt;()
+E        +    where &lt;built-in method upper of str object at 0x000001E628161830&gt; = 'WITH  AS (user_cte)'.upper
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:228: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_comment_handling" time="0.003"><failure message="assert 2 == 1&#10; +  where 2 = len([Select(\n  expressions=[\n    Star()],\n  from=From(\n    this=Table(\n      this=Identifier(this=users, quoted=False))),\n  _comments=[\n    This is a comment]), Semicolon(_comments=[\n    This is another comment ,\n    This is a final comment])])">self = &lt;test_sql_parser.TestSQLParser object at 0x000001E628029AC0&gt;
+sql_parser = &lt;sql_converter.parsers.sql_parser.SQLParser object at 0x000001E6280A2540&gt;
+
+    def test_comment_handling(self, sql_parser):
+        """Test that comments are properly handled."""
+        sql = """
+        -- This is a comment
+        SELECT * FROM users; /* This is another comment */
+        -- This is a final comment
+        """
+    
+        # Parse SQL
+        expressions = sql_parser.parse(sql)
+    
+        # Verify the comment doesn't interfere with the parse
+&gt;       assert len(expressions) == 1
+E       assert 2 == 1
+E        +  where 2 = len([Select(\n  expressions=[\n    Star()],\n  from=From(\n    this=Table(\n      this=Identifier(this=users, quoted=False))),\n  _comments=[\n    This is a comment]), Semicolon(_comments=[\n    This is another comment ,\n    This is a final comment])])
+
+sql_converter\tests\unit\parsers\test_sql_parser.py:243: AssertionError</failure></testcase><testcase classname="sql_converter.tests.unit.parsers.test_sql_parser.TestSQLParser" name="test_to_sql_format_consistency" time="0.002" /></testsuite></testsuites>
