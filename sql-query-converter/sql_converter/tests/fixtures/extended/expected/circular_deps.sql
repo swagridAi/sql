@@ -1,2 +1,0 @@
--- This is expected to fail with a CircularDependencyError
--- No expected output is provided since the conversion should not complete
