@@ -16,6 +16,17 @@ The question that anchors this paper:
 
 The word that captures the challenge is **metabolising**. Organisations don't just adopt technology; they digest it. Some convert it into energy — new capability, new behaviours, new economics. Others let it pass through undigested: pilots that never scale, licences that go unused, innovation teams that never infect the host. The banks that win the next decade will be the ones with the strongest metabolism, not the biggest tool budget.
 
+### How this paper is organised
+
+- **Part I (§1–11) — the affirmative agenda:** eleven themes covering where advantage comes from and how the operating model must change, each ending in a discussion question. §11 synthesises Part I.
+- **Part II (§12–19) — the harder angles:** the questions a sharp room will ask — trust, talent pipelines, foundations, measurement, timing, saturation, organisational shape, and partnerships.
+- **Part III (§20) — the emerging-trends radar:** what's coming, on three horizons.
+- A **closing synthesis** pulls the whole argument together. A companion deep dive on the finance function (`finance-function-deep-dive.md`) and a source guide (`research-resources.md`) sit alongside this paper.
+
+---
+
+# Part I — The affirmative agenda
+
 ---
 
 ## 1. Where comparative advantage will actually come from
@@ -25,6 +36,8 @@ The word that captures the challenge is **metabolising**. Organisations don't ju
 The cost of intelligence is collapsing and access is commoditising. Frontier model capability is doubling on cycles measured in months, and every enterprise buys from the same handful of providers. When an input is universally available, it cannot be a source of advantage — just as electricity, cloud, and mobile were not advantages in themselves.
 
 What history shows (electricity took ~30 years to reshape factory design; cloud took ~15 to reshape software delivery) is that advantage accrues to organisations that **redesign work around the new input**, not those that bolt it onto old processes.
+
+One encouraging counterpoint to the cross-industry gloom: Bain's financial-services survey finds the sector ahead of the pack — average productivity gains around 20% in software development and customer service, with **75% of financial-services firms achieving or exceeding expected value** from gen AI, against BCG's cross-industry finding that 74% show no tangible value. Read carefully, that raises the bar rather than lowering it: if most banks are capturing baseline gains, baseline gains are table stakes, and differentiation moves to the operating model.
 
 ### Where the advantage sits for a bank
 
@@ -81,6 +94,8 @@ The strategic inversion: a bank with real-time assurance and policy-as-code can 
 
 The first wave of AI in customer service — chatbots deflecting simple queries — is largely exhausted and increasingly resented by customers. The second wave inverts the model: AI works **behind and alongside** humans and journeys, not just in front of them.
 
+The Klarna arc is the canonical case for calibrating ambition. Its AI assistant handled two-thirds of all customer chats in its first month — the work of ~700 agents, with resolution times down from 11 minutes to under 2. By mid-2025 Klarna was rehiring humans: quality had broken on the complicated, emotionally loaded cases, and the CEO conceded the company had "cut too far." The mature reading is not "AI failed" — the AI still does the volume — but that the design target is **AI plus a guaranteed human path**, with success measured on resolution and satisfaction by case complexity, not deflection averages. For a bank, where the hard cases are hardship, disputes, and bereavement, that lesson arrives pre-paid.
+
 ### The future state
 
 - **Proactive support** — the bank detects the failed payment, the fraud pattern, or the hardship signal and reaches out before the customer calls.
@@ -125,6 +140,8 @@ The deeper shift is in **identity**: finance moves from scorekeeper and reporter
 - Run the greenfield exercise honestly: for each major finance process, decide **keep / automate / redesign entirely** — and expect the third column to be the longest.
 - Don't try to rebuild everything; pick one process (e.g. management reporting or variance analysis) and build the greenfield version alongside the legacy one, then migrate.
 - Reinvest capacity into forward-looking work, and say so explicitly — the goal is a more valuable finance function, not merely a cheaper one.
+
+*A full treatment of this theme — what's occurring now in bank finance and accounting functions, sub-function by sub-function, and the future direction — is in the companion deep dive: `finance-function-deep-dive.md`.*
 
 **Discussion question:** If we rebuilt finance from scratch today, what would we keep, automate, or redesign entirely?
 
@@ -313,9 +330,9 @@ Design cautions: keep the bench small and genuinely elite; give it a clear intak
 
 ---
 
-## 11. Synthesis: the operating model is the moat
+## 11. Part I synthesis: the operating model is the moat
 
-Pulling the threads together:
+Pulling Part I's threads together:
 
 1. **Models are commodities; metabolism is not.** Advantage comes from data readiness, workflow depth, governance maturity, trust, and above all speed of organisational absorption.
 2. **Governance can be the accelerator.** Policy-as-code, embedded controls, and real-time assurance let a regulated bank move faster, not slower.
@@ -325,9 +342,7 @@ Pulling the threads together:
 6. **Talent and diffusion share a solution.** The floating expert layer retains the best people by giving them the best problems — and doubles as the mechanism that spreads new practice.
 7. **Benchmark globally, translate locally.** Europe for regulated adoption, US East Coast for enterprise scale, US West Coast for the frontier signal.
 
-The closing line for the conversation:
-
-> **The question I keep coming back to is: how do we turn AI from a set of tools and pilots into an organisational capability — something that changes how risk, finance, customer service, talent, and work itself are designed? Everyone will have the models. Advantage belongs to the organisation that metabolises them fastest.**
+That is the affirmative case. It survives only if it can answer the harder questions — which is what Part II is for.
 
 ---
 
@@ -580,6 +595,22 @@ Part I's West Coast comparator (§9) says *watch the frontier*. This section is 
 
 ---
 
+# Closing — the whole argument in one page
+
+**Part I** argued that AI advantage will not come from tool access — everyone will have the models — but from the operating model: governance built as an accelerator, journeys and functions redesigned rather than retrofitted, work re-platformed onto a live operating layer, capability gaps managed by design, talent retained through problem quality, and new practices metabolised across the enterprise rather than trapped in pilots.
+
+**Part II** stress-tested that agenda against the harder realities: diffusion runs on a trust bargain with employees; apprenticeship must be deliberately rebuilt or the senior bench of 2032 disappears; data, entitlements, and vendor exit-ability are the unglamorous critical path; workslop is what unmeasured adoption looks like; capability growth punishes heavy scaffolding and rewards durable foundations; an AI strategy that only adds is a wish; organisational shape is a five-year design choice between attrition-led and crisis-led; and partnerships deserve M&A-grade rigour.
+
+**Part III** set the radar: agents are crossing from pilots to production inside a two-year window; agent capability is doubling every few months; the payment standards for the agent economy are being written now; and — uniquely for Australia — tokenised bank money has already been piloted with the RBA. The trust layer of the agent economy is being allocated in the standards rooms today.
+
+The single thread through all three parts: **every durable advantage on the list is an operating-model property, not a technology purchase.** Metabolism — the speed at which the organisation absorbs, redesigns, assures, and diffuses — is the moat.
+
+The line to land the conversation on:
+
+> **The question I keep coming back to is: how do we turn AI from a set of tools and pilots into an organisational capability — something that changes how risk, finance, customer service, talent, and work itself are designed? Everyone will have the models. Advantage belongs to the organisation that metabolises them fastest.**
+
+---
+
 ## Appendix: the discussion questions in one place
 
 1. Where will enterprise AI advantage actually come from — data, workflow integration, risk maturity, customer trust, talent, speed of adoption, or something else?
@@ -608,3 +639,5 @@ Part I's West Coast comparator (§9) says *watch the frontier*. This section is 
 
 19. When our customer's AI agent tries to move their money, are we the trust anchor for that transaction — or a bystander to it?
 20. Which of our current plans quietly assume AI capability stays where it is today?
+
+*Six further finance-specific questions are at the end of `finance-function-deep-dive.md`.*
