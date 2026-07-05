@@ -331,6 +331,215 @@ The closing line for the conversation:
 
 ---
 
+# Part II — The harder angles
+
+Part I sets the affirmative agenda. Part II explores the questions a sharp room will ask — the tensions, dependencies, and second-order effects that determine whether the agenda survives contact with reality. These are not caveats; they are design problems, and most of them have better answers than the defaults organisations drift into.
+
+---
+
+## 12. The internal trust bargain
+
+### The trend
+
+Every metabolism argument in Part I assumes employees will surface what they learn — that productivity gains discovered at the desk will flow upward into patterns, playbooks, and redesigned processes. That assumption fails silently if the perceived payoff for a productivity gain is a headcount reduction.
+
+The evidence that it is already failing is hiding in plain sight. McKinsey's *Superagency* research found employees reporting roughly **three times more AI usage than their C-suite estimated**. Ethan Mollick calls these employees "secret cyborgs": people quietly using AI to do their jobs better while telling their managers nothing — because disclosure carries risk (of policy breach, of ridicule, of being restructured) and secrecy carries advantage. An organisation full of secret cyborgs has plenty of AI adoption and zero AI metabolism: the gains are real but private, and nothing diffuses.
+
+### The Australian case study
+
+Australia produced the canonical cautionary tale in 2025. CBA declared 45 customer-service roles redundant, citing its new AI voice bot. Call volumes rose rather than fell; the bank ended up offering overtime and redeploying team leaders to the phones. Under Finance Sector Union pressure, CBA reversed the redundancies, formally admitted the assessment "did not adequately consider all relevant business considerations," and offered affected staff their roles back.
+
+The tactical error was announcing automation benefits before the evidence existed. The strategic damage was larger: every employee in every Australian bank watched, and updated their answer to the question *"what happens to me if I get faster?"* That answer is now a headwind for every adoption program in the sector.
+
+### What the bargain looks like when it's designed
+
+- **A credible value-sharing commitment**: productivity gains flow first to growth, backlog reduction, and redeployment — with redundancy as a last resort, not a first announcement. The commitment must be specific enough to be falsifiable, or it will be read as spin.
+- **Disclosure made safe and rewarded**: celebrate the employee who found the 10× workflow, rather than auditing them. An amnesty-plus-paved-road model — "show us what you built, and we'll help you make it safe" — converts shadow AI into organisational capability.
+- **The union as a design partner, not a veto point**: the FSU will be part of this transition either way; the only choice is whether engagement happens upstream (co-designing redeployment and retraining) or downstream (contesting redundancies case by case).
+- **Honesty about the long term**: employees can handle "some roles will change and some will shrink over five years, and here is how we'll manage that with you." What breaks trust is pretending otherwise and then acting suddenly.
+
+The deeper point: the trust bargain is not an HR communications matter. It is a **precondition for the metabolism described in Part I**. Diffusion runs on disclosure; disclosure runs on safety.
+
+**Discussion question:** If an employee doubles their productivity with AI tomorrow, what do they honestly believe happens to them — and does that belief accelerate or kill diffusion?
+
+---
+
+## 13. The junior pipeline paradox
+
+### The trend
+
+Banks have always built senior judgement through apprenticeship: the analyst who builds a hundred credit memos becomes the credit officer who can smell a bad deal; the ops processor who has seen a thousand exceptions becomes the manager who designs the control. AI is now doing precisely the work that apprenticeship ran on — the first drafts, the routine analysis, the grunt work.
+
+The early labour-market signal is stark: Stanford's AI Index reports employment for software developers aged 22–25 down roughly 20% since 2024, while demand for senior engineers holds. If banks follow the same path — hiring fewer juniors because AI does junior work — they are quietly cancelling their 2032 senior cohort.
+
+### The paradox has a counter-current
+
+The evidence is not one-directional. Brynjolfsson's call-centre study found AI assistance lifted novices by 34% precisely because the tool **encoded the tacit knowledge of the best performers** and transmitted it — novices moved down the experience curve dramatically faster. AI can be the best apprenticeship accelerator ever built, or the thing that abolishes apprenticeship, depending entirely on how the work is designed.
+
+The failure mode to avoid: juniors as **reviewers of work they never learned to produce**. A graduate who has only ever edited AI-drafted credit memos has no basis for knowing when the draft is wrong — and per the jagged-frontier research, knowing when the AI is wrong is exactly the judgement that matters most.
+
+### Forward direction
+
+- **Redesign graduate programs around deliberate practice**, not production throughput: if AI produces the memo, the training value must be engineered back in — juniors independently form a view, then confront the AI's view, with the delta coached.
+- **Build simulation**: banks can create the equivalent of a flight simulator for credit, markets, and ops decisions — compressed, safe, high-feedback repetitions of the judgement calls that used to take a decade of live exposure to accumulate.
+- **Route juniors through the exception queues**: in an exception-based operating model (Part I, §2 and §4), the exceptions are where the learning lives. Staff them deliberately with junior-senior pairs.
+- **Measure time-to-competence** as a first-class metric: if AI genuinely accelerates learning curves, the pipeline paradox resolves itself; if the metric is drifting the wrong way, the bank finds out in 2027 rather than 2032.
+- **Keep hiring juniors.** The tempting saving is small; the compounding cost of a missing cohort is not.
+
+**Discussion question:** If AI does the 2026 analyst's work, where does the 2032 senior credit officer come from — and is AI our apprenticeship destroyer or the best apprenticeship accelerator we've ever had?
+
+---
+
+## 14. Foundations: data, legacy, and vendor concentration
+
+### The trend
+
+Every ambition in Part I quietly assumes three foundations: data that is findable, governed, and connected; systems that AI can integrate with; and a supply chain the bank can rely on. In most banks all three assumptions are shaky — and the gap between AI ambition and foundation reality is where transformation programs go to die. MIT's GenAI Divide research found failures concentrated not in model quality but in integration; Stanford's AI Index found **inaccuracy is now the top-cited AI risk (74% of organisations)** — which is, at root, a data and grounding problem.
+
+### The three foundations
+
+**Data.** The proprietary-data advantage of §1 is only real if the data is usable. Most bank data is trapped in legacy cores, with inconsistent schemas, weak lineage, and unclear ownership. Meanwhile the most valuable AI fuel — the unstructured "dark data" of call transcripts, credit memos, procedures, complaint files, and policy documents — is typically the least governed of all. The banks that win will treat knowledge bases and data products as tier-1 assets with named owners, not as exhaust.
+
+**Legacy and entitlements.** An AI agent is only as safe as the permission model it operates in. Most bank entitlement systems were designed for humans with roles, not agents with tasks — over-provisioned access that was tolerable for a person becomes dangerous when an agent can act at machine speed across every system it can reach. Entitlement redesign is unglamorous, invisible in a demo, and absolutely prerequisite to the agentic future. It belongs on the critical path now.
+
+**Vendor concentration.** APRA's 2026 letter flagged it directly: strategic dependence on a small number of AI providers, with few entities demonstrating robust contingency planning. The forward posture is a **model-agnostic abstraction layer** (so workloads can move), dual-sourcing for critical workloads, genuine exit plans, and mapped visibility over the full AI supply chain — the same discipline banks already apply to cloud, applied earlier this time.
+
+### Forward direction
+
+- Sequence foundation work by AI use case, not as a boil-the-ocean data program: fix the data, permissions, and integration for the two or three journeys being rebuilt (§3), then expand along the path of value.
+- Fund entitlement modernisation as an AI program, not an IT hygiene program — because that is what it is.
+- Treat the abstraction layer and exit-ability as board-visible risk items, per APRA, not procurement details.
+
+**Discussion question:** Which matters more over the next two years — deploying more AI, or making our data, permissions, and supply chain AI-ready? And do our funding decisions reflect that answer?
+
+---
+
+## 15. The measurement problem — and workslop
+
+### The trend
+
+Most organisations currently measure AI adoption by activity: licences issued, pilots launched, prompts submitted. None of these measure value, and some of them anti-measure it. Gartner's finance data makes the gap concrete: 84% of finance organisations have implemented or plan AI; **7% report high impact**.
+
+The dark side of activity metrics now has a name. Stanford's Social Media Lab and BetterUp Labs coined **"workslop"**: AI-generated content polished enough to masquerade as good work but lacking the substance to advance the task — shifting the real work downstream to whoever receives it. Their survey of US desk workers found **41% had received workslop in the past month**, each incident consuming nearly two hours to untangle, at an estimated cost of ~$186 per worker per month (over $9M annually for a 10,000-person organisation). Worse than the cost is the trust damage: recipients rated workslop senders as less capable, less reliable, and less worth working with.
+
+The critical finding: workslop is largely **management-manufactured**. It flourishes where leaders pressure staff to "use AI more" and to produce more, without training, quality standards, or clarity about what AI-assisted work should look like. An unmeasured AI mandate produces the appearance of adoption and the reality of friction.
+
+### Forward direction
+
+- **Measure outcomes, not activity**: cycle time, rework rates, quality scores, customer outcomes, downstream correction effort. If a team's AI use is real, these move; if only prompt counts move, that is workslop's signature.
+- **Instrument rework** explicitly — the receiving end of work is where AI's true net productivity reveals itself. Treat workslop as a process defect with a defect rate, not an individual failing.
+- **Normalise disclosure of AI assistance** so quality can be attributed and coached — this depends directly on the trust bargain of §12.
+- **Train managers to evaluate augmented work**: volume and polish are now free; judgement, correctness, and fit-for-purpose are the scarce goods a manager must learn to inspect for.
+- Publish an internal standard for what "good AI-assisted work" looks like by role — the absence of that standard is what workslop grows in.
+
+**Discussion question:** How do we distinguish genuine AI leverage from polished noise — and what is our equivalent of a defect rate for AI-assisted work?
+
+---
+
+## 16. Timing under fast capability growth
+
+### The trend
+
+Model capability is improving on cycles measured in months, and each capability jump silently obsoletes a class of enterprise engineering. Elaborate retrieval pipelines built to compensate for small context windows, prompt-chain architectures built to compensate for weak reasoning, human-review layers built for error rates that have since halved — much of the scaffolding enterprises build around today's model limitations is **workaround engineering with a short half-life**.
+
+This creates a genuine timing dilemma. Move too slowly and the adoption muscle never develops. Move too heavily and capital is buried in scaffolding the next model release makes worthless.
+
+### The resolution: sort investments by durability
+
+**Durable (build now, compounds regardless of model progress):**
+- Data quality, data products, entitlements (§14)
+- Evaluation harnesses and promotion gates for AI systems
+- Governance infrastructure: policy-as-code, audit trails, risk tiers (§2)
+- Adoption muscle, patterns, and the diffusion machinery of §8
+- Workflow redesign — a rebuilt journey gets *better* as models improve
+
+**Perishable (hold lightly, buy rather than build, expect to discard):**
+- Engineering that compensates for a current model weakness
+- Heavy orchestration built for today's autonomy level
+- Anything a vendor category is racing to commoditise
+
+The strategic insight: **the durable list is the operating model itself.** Fast-follower economics genuinely work for perishable investments — let others fund the dead ends. They do not work for metabolism, because adoption muscle, governance maturity, and diffusion machinery cannot be bought later at any price; they only grow with reps. Be a fast follower on scaffolding; be early on metabolism.
+
+### Forward direction
+
+- Run the AI portfolio with explicit depreciation assumptions: every build is tagged durable or perishable, and perishable builds carry a review date tied to model release cycles.
+- Prefer thin scaffolding and vendor solutions in fast-moving categories; reserve engineering depth for durable assets and genuinely differentiating workflows.
+- Revisit quarterly: "which of our workarounds did the latest model generation just retire?"
+
+**Discussion question:** Which of our AI investments would survive a model ten times better arriving next year — and which are workarounds we should hold lightly?
+
+---
+
+## 17. Change saturation: what do we stop?
+
+### The trend
+
+The scarcest resource in a large bank is not funding — it is **change capacity**: frontline attention, engineering hours, risk-review bandwidth, and the finite ability of any team to absorb new ways of working. Every major bank is already running dozens of concurrent transformation programs against that fixed capacity. AI initiatives layered on top of a saturated agenda do not fail loudly; they produce shallow adoption everywhere — training attended, tools issued, behaviour unchanged.
+
+There is a second, more uncomfortable dimension: much of the in-flight change portfolio was **designed before current AI capability existed**. Multi-year programs specified in 2023–24 are, in places, building manual processes AI can now do, or automation approaches AI has now leapfrogged. Sunk-cost momentum keeps them running.
+
+### Forward direction
+
+- **Publish a stop-list alongside the start-list.** An AI strategy that only adds is not a strategy; it is a wish. Credibility with the organisation comes from what gets cancelled, descoped, or paused to make room.
+- **Re-scope in-flight programs against current AI capability** — a standing review, not a one-off: *would we start this program today, designed this way?* Redirect the ones that fail the test; harvest the ones that are automating what should be redesigned.
+- **Retire what AI replaces.** When an AI-enabled process ships, the legacy process, report, or pack it supersedes must actually be switched off. Running both is how banks accumulate cost instead of removing it — and how change capacity gets consumed twice for one outcome.
+- **Measure change load per team** and sequence AI adoption around it. The best AI rollout in the world fails in a team that is simultaneously absorbing a core migration, a reg change, and a restructure.
+
+**Discussion question:** Which in-flight programs would we not start today, knowing what AI can do — and what will we visibly stop, to make room for the metabolism we say we want?
+
+---
+
+## 18. The shape of the organisation
+
+### The trend
+
+Part I's operating-model theme (§7) covers how work flows; this angle covers the quieter variable of **how big and what shape** the organisation should be. AI-native companies are demonstrating that small teams can carry what previously took departments — Microsoft's Work Trend Index describes "Work Charts" of fluid human-agent teams replacing static org charts. Much of what a large bank's structure exists to do — coordination, status transmission, information brokering between layers — is precisely the work AI does best. The layers most exposed are not the frontline or the experts, but the **coordination middle**.
+
+For a 40–50,000-person institution this is not a restructure announcement; it is a five-to-ten-year design question about layers, spans, team size, and the ratio of doers to coordinators.
+
+### Two paths
+
+**Crisis-led:** deny the question, run periodic redundancy rounds as pressure builds, and pay for each round twice — once in payouts, once in the trust destruction (§12) that stalls the next three years of adoption. This is the default path, arrived at by not choosing.
+
+**Attrition-led:** treat natural turnover — roughly 10–15% a year in a large bank, which is enormous design space over five years — plus redeployment and reskilling as the primary reshaping levers. Model the target shape, hire selectively into it, retrain toward it, and let the organisation converge without shocks. This path is only available to banks that start early; it closes a little every year it isn't taken.
+
+### Forward direction
+
+- Model the five-year shape honestly: if an AI-native competitor could run our product set with a fraction of our headcount, what shape is defensible, and what is the annual glide path to it?
+- **Redefine the manager role** ahead of the structure: from coordinator of work to coach, quality owner, and judgement-holder — the parts of management AI does not do. Managers who understand their future role become allies of the transition instead of its quiet resistance.
+- Pilot AI-augmented team shapes in one domain (small team, broad scope, heavy AI leverage) and measure output per team honestly against the traditional shape before generalising.
+- Connect this explicitly to the trust bargain (§12) and the WEF redeployment agenda: 50% of employers plan to transition staff from declining to growing roles — the shape change and the reskilling program are the same program.
+
+**Discussion question:** If an AI-native competitor could run our product set with a fifth of our headcount, what is our managed path to a defensible shape — attrition-led by design, or crisis-led by default?
+
+---
+
+## 19. Build, buy, or partner
+
+### The trend
+
+Australian banks are already making frontier-lab partnership commitments — CBA's partnership with OpenAI being the most prominent local example — alongside hyperscaler alliances and fintech stakes. These deals are increasingly strategic commitments with lock-in, co-development terms, data implications, and talent-flow consequences. Yet in many institutions they receive procurement-grade rigour rather than the M&A-grade rigour their consequences warrant.
+
+### A working framework
+
+- **Build** where the capability is differentiating, rides on proprietary data, and sits on the durable side of §16's ledger: workflow integration, evaluation harnesses, data products, and the patterns library. Never build to compensate for a model weakness the market will fix.
+- **Buy** where the category is commoditising fast — vendors racing each other fund the innovation, and the bank keeps switching options open. Most horizontal copilots and productivity tooling live here.
+- **Partner** for frontier access, co-development on genuinely novel use cases, and — critically — **learning**. The test of a good partnership is capability transfer: joint teams, residencies, engineers working alongside the lab's people. A partnership that only transfers tokens for dollars is a supply contract wearing a strategy costume.
+
+### The concentration overlay
+
+Whatever the mix, APRA's supplier-concentration expectations (§14) apply: abstraction layers that keep workloads portable, dual-sourcing for critical paths, contractual exit rights, and contingency plans that have actually been rehearsed. Partnership depth and provider diversification are in tension; the tension should be managed consciously at board level, not resolved by default through accumulating dependence.
+
+### Forward direction
+
+- Give the largest AI partnership a standing governance rhythm equivalent to a major joint venture: value scorecard, capability-transfer metrics, dependency review, exit readiness.
+- Write the learning agenda into the deal — named secondees, co-build teams, pattern co-ownership — not as goodwill but as terms.
+- Revisit the build-buy-partner allocation annually against §16's durability test; the right answer moves as the market does.
+
+**Discussion question:** Does our biggest AI partnership get M&A-grade rigour and a capability-transfer scorecard — or is it a supply contract we're calling a strategy?
+
+---
+
 ## Appendix: the discussion questions in one place
 
 1. Where will enterprise AI advantage actually come from — data, workflow integration, risk maturity, customer trust, talent, speed of adoption, or something else?
@@ -343,3 +552,14 @@ The closing line for the conversation:
 8. How does a large organisation metabolise new AI-native ways of thinking and disperse them, rather than leaving them trapped in pilots and power users?
 9. Is the right comparator set Europe for regulation, US East Coast for enterprise transformation, and US West Coast for frontier operating models — and how do we translate without mis-copying?
 10. Could banks retain top tech talent through a floating expert layer that moves across priority problems and spreads new ways of working?
+
+**Part II — the harder angles:**
+
+11. If an employee doubles their productivity with AI tomorrow, what do they honestly believe happens to them — and does that belief accelerate or kill diffusion?
+12. If AI does the 2026 analyst's work, where does the 2032 senior credit officer come from?
+13. Which matters more over the next two years — deploying more AI, or making our data, permissions, and supply chain AI-ready?
+14. How do we distinguish genuine AI leverage from polished noise — what is our defect rate for AI-assisted work?
+15. Which of our AI investments would survive a model ten times better arriving next year — and which are workarounds we should hold lightly?
+16. Which in-flight programs would we not start today, knowing what AI can do — and what will we visibly stop?
+17. What is our managed path to a defensible organisational shape — attrition-led by design, or crisis-led by default?
+18. Does our biggest AI partnership get M&A-grade rigour and a capability-transfer scorecard — or is it a supply contract we're calling a strategy?

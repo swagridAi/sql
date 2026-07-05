@@ -127,4 +127,17 @@ And one regulatory anchor: **APRA's April 2026 letter** — the governance agend
 
 ---
 
+## Part II sources (the harder angles)
+
+| Source | Finding | Link |
+|---|---|---|
+| BetterUp Labs & Stanford Social Media Lab — "AI-Generated 'Workslop' Is Destroying Productivity" (HBR, Sept 2025) | 41% of US desk workers received workslop in the prior month; ~1h56m to untangle each incident; ~$186/worker/month (~$9M+/yr per 10,000 employees); recipients rate senders as less capable and trustworthy. Workslop is largely management-manufactured — pressure to "use AI" without standards or training | [HBR](https://hbr.org/2025/09/ai-generated-workslop-is-destroying-productivity) · [Axios summary](https://www.axios.com/2025/09/24/ai-workslop-workplace-efficiency-study) |
+| CBA voice-bot redundancy reversal (Aug 2025) | CBA declared 45 Customer Service Direct roles redundant citing its AI voice bot; call volumes rose instead; under FSU pressure CBA reversed, admitted the assessment "did not adequately consider all relevant business considerations," and offered staff their roles back | [Information Age — cuts](https://ia.acs.org.au/article/2025/cba-replaces-90-support-staff-with-ai-chatbot.html) · [Information Age — reversal](https://ia.acs.org.au/article/2025/cba-reverses-ai-driven-job-cuts--admits--error-.html) |
+| Ethan Mollick — "secret cyborgs" concept | Employees privately using AI without disclosure because secrecy carries advantage and disclosure carries risk; pairs with McKinsey's finding that employees report ~3× the AI usage leaders estimate | [McKinsey Superagency](https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/superagency-in-the-workplace-empowering-people-to-unlock-ais-full-potential-at-work) |
+| Stanford AI Index 2026 — Economy chapter | Employment for software developers aged 22–25 down ~20% from 2024 — the early signal for the junior-pipeline paradox | [Economy chapter](https://hai.stanford.edu/ai-index/2026-ai-index-report/economy) |
+
+*(The trust-bargain, pipeline, foundations, timing, saturation, shape, and partnership sections also draw on sources already listed above: McKinsey Superagency, Brynjolfsson et al., Dell'Acqua et al., MIT GenAI Divide, APRA's April 2026 letter, Gartner finance AI data, Microsoft Work Trend Index, and WEF Future of Jobs.)*
+
+---
+
 *Compiled July 2026. All findings paraphrased from public sources; verify exact figures against the primary documents before external use.*
