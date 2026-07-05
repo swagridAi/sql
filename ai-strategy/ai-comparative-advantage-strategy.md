@@ -540,6 +540,46 @@ Whatever the mix, APRA's supplier-concentration expectations (§14) apply: abstr
 
 ---
 
+# Part III — The emerging-trends radar
+
+## 20. What's coming: a three-horizon radar
+
+Part I's West Coast comparator (§9) says *watch the frontier*. This section is the watching — a radar of what the research houses, labs, standards bodies, and regulators are signalling as of mid-2026, organised by horizon.
+
+### Horizon 1 — Now (already in production somewhere)
+
+- **Enterprise copilots at genuine scale.** JPMorgan's LLM Suite reaches ~250,000 employees with roughly half using it daily, reporting 30–40% efficiency gains — proof that bank-wide deployment inside a controlled, compliant environment is achievable, not aspirational.
+- **Domain-specific and small language models.** Gartner flags DSLMs as a 2026 trend: higher accuracy, lower cost, better compliance for regulated workflows than general frontier models — attractive wherever the task is narrow and the audit trail matters.
+- **AI security platforms.** Purpose-built defences for AI-specific risks — prompt injection, data leakage, rogue-agent containment — are becoming a standard enterprise control layer, and a prudential expectation in the making.
+- **AI fluency as a hard performance gate.** Accenture, after training 550,000 staff, now ties senior promotions to demonstrated AI use — the first large-scale example of AI capability moving from "encouraged" to "required," and a preview of where bank performance frameworks go.
+
+### Horizon 2 — Next 1–2 years (standards set, deployment racing)
+
+- **Agentic AI crosses from pilots to production.** Gartner predicts 40% of enterprise applications will embed task-specific agents by end-2026 (from under 5% in 2025), yet only 17% of organisations have deployed agents today and no business function shows more than ~10% scaled use (McKinsey). The gap between prediction and deployment is the competitive window.
+- **Multi-agent systems.** The 2026 architectural trend: specialised agents collaborating on complex workflows — the technical substrate for the redesigned journeys and functions of Part I.
+- **The capability curve as a planning parameter.** METR's task-horizon research: the length of task an AI agent can complete autonomously has grown from ~4 seconds (2019) to 16+ hours (2026), with the doubling time accelerating from ~7 months toward ~3–4. If it holds, month-long autonomous tasks arrive around 2027. This is the quantified version of §16's timing argument — plan on capability doubling multiple times within a single budget cycle.
+- **Agentic commerce standards harden.** Google's AP2 (Agent Payments Protocol) launched with 60+ partners including Mastercard, PayPal and Amex, using cryptographically signed mandates to prove an agent acted with its user's consent; OpenAI's ACP handles checkout inside AI surfaces; Coinbase's x402 processed ~165 million agent transactions in its first months; and in May 2026 AP2 and Mastercard's Verifiable Intent were contributed to the FIDO Alliance. Visa is already inside ChatGPT. The plumbing for customers' agents to transact is being standardised now — largely by networks and big tech.
+
+### Horizon 3 — Emerging (the shape is visible, the timing isn't)
+
+- **Agents meet programmable money.** The RBA/DFCRC **Project Acacia** final report (May 2026) ran twelve live-money pilots on tokenised assets, with a deposit-token working group of ANZ, CBA, NAB and Westpac concluding tokenised deposits could fit within existing banking law with modest reform. Combine that with the agentic-commerce stack above and the outline appears: **AI agents holding signed mandates, settling machine-to-machine in tokenised bank money.** Australia, unusually, has a live local artefact for this conversation.
+- **The bank as trust anchor for the agent economy.** When a customer's agent transacts, someone must verify the agent is authorised, authenticate its principal, stand behind the payment, and absorb liability when it fails. That is mandate management, KYC, and payments — the bank's home ground. The standards forming now (AP2, Verifiable Intent, FIDO) will determine whether banks hold that trust layer or cede it to networks and platforms. Being in the standards room is cheap; being locked out of the trust layer is not.
+- **The organisational endgame.** Microsoft's "Frontier Firm" and Gartner's multi-agent trajectory converge on the same picture: mixed teams of humans and agents, managed through outcome-based work charts — the operating model of §7 taken to its conclusion.
+
+### Forward direction
+
+- Stand up a lightweight **standing radar function** (per §9's comparator model) with named owners for: agentic standards (AP2/ACP/x402/FIDO), tokenised money (post-Acacia), and frontier capability (METR-style tracking) — feeding quarterly into strategy and the §16 durability review.
+- Join the standards conversations early — participation cost is trivial against the option value.
+- Treat the METR curve as a budgeting assumption: any plan that implicitly assumes today's capability ceiling is already wrong.
+
+**Discussion questions:**
+- When our customer's AI agent tries to move their money, are we the trust anchor for that transaction — or a bystander to it?
+- Which of our current plans quietly assume AI capability stays where it is today?
+
+*Companion analysis: for the finance function specifically, see the deep dive in `finance-function-deep-dive.md`.*
+
+---
+
 ## Appendix: the discussion questions in one place
 
 1. Where will enterprise AI advantage actually come from — data, workflow integration, risk maturity, customer trust, talent, speed of adoption, or something else?
@@ -563,3 +603,8 @@ Whatever the mix, APRA's supplier-concentration expectations (§14) apply: abstr
 16. Which in-flight programs would we not start today, knowing what AI can do — and what will we visibly stop?
 17. What is our managed path to a defensible organisational shape — attrition-led by design, or crisis-led by default?
 18. Does our biggest AI partnership get M&A-grade rigour and a capability-transfer scorecard — or is it a supply contract we're calling a strategy?
+
+**Part III — the emerging-trends radar:**
+
+19. When our customer's AI agent tries to move their money, are we the trust anchor for that transaction — or a bystander to it?
+20. Which of our current plans quietly assume AI capability stays where it is today?
