@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metabolising AI — Building Comparative Advantage</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161d27;
+    --surface-2: #1c2532;
+    --border: #2a3546;
+    --text: #e8edf4;
+    --text-dim: #9aa8bb;
+    --accent: #e8b44a;
+    --accent-soft: rgba(232, 180, 74, 0.14);
+    --teal: #4ec9b0;
+    --blue: #6aa9e9;
+    --rose: #e07a7a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4.5rem 7vw 5.5rem;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .slide.active { display: flex; animation: fadein .45s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .kicker {
+    font-size: .78rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin-bottom: 1.1rem;
+  }
+  h1 { font-size: clamp(2.2rem, 4.6vw, 3.6rem); font-weight: 700; line-height: 1.12; letter-spacing: -0.015em; }
+  h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 700; line-height: 1.18; letter-spacing: -0.01em; margin-bottom: 1.6rem; }
+  .lede { font-size: clamp(1.02rem, 1.5vw, 1.25rem); color: var(--text-dim); line-height: 1.55; max-width: 62ch; }
+  .accent { color: var(--accent); }
+  .quote {
+    border-left: 3px solid var(--accent);
+    padding: .4rem 0 .4rem 1.4rem;
+    font-size: clamp(1.15rem, 2vw, 1.55rem);
+    line-height: 1.45; font-weight: 500;
+    max-width: 58ch;
+  }
+  .qlabel {
+    display: inline-block; margin-top: 2rem;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid rgba(232,180,74,.35);
+    border-radius: 999px; padding: .45rem 1.1rem;
+    font-size: .82rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  }
+  .question {
+    margin-top: .8rem; font-size: clamp(1rem, 1.6vw, 1.3rem);
+    line-height: 1.5; color: var(--text); max-width: 66ch; font-style: italic;
+  }
+
+  .grid { display: grid; gap: .9rem; }
+  .grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.15rem 1.3rem;
+  }
+  .card h3 { font-size: 1rem; font-weight: 650; margin-bottom: .4rem; }
+  .card p { font-size: .88rem; color: var(--text-dim); line-height: 1.5; }
+  .card.hi { border-color: rgba(232,180,74,.5); background: linear-gradient(180deg, rgba(232,180,74,.08), var(--surface)); }
+  .card.hi h3 { color: var(--accent); }
+
+  ul.clean { list-style: none; }
+  ul.clean li {
+    padding: .5rem 0 .5rem 1.7rem; position: relative;
+    font-size: clamp(.95rem, 1.35vw, 1.12rem); line-height: 1.5; color: var(--text);
+  }
+  ul.clean li::before {
+    content: ""; position: absolute; left: 0; top: .95em;
+    width: .55em; height: .55em; border-radius: 2px;
+    background: var(--accent); transform: rotate(45deg);
+  }
+  ul.clean li b { color: var(--text); }
+  ul.clean li span { color: var(--text-dim); }
+
+  .shift { display: grid; grid-template-columns: 1fr auto 1fr; gap: .6rem 1rem; align-items: center; }
+  .shift .from, .shift .to {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: .6rem 1rem; font-size: .92rem;
+  }
+  .shift .from { color: var(--text-dim); }
+  .shift .to { border-color: rgba(78,201,176,.45); color: var(--text); }
+  .shift .arrow { color: var(--teal); font-size: 1.05rem; font-weight: 700; }
+
+  .tier { display: flex; gap: 1rem; margin-top: .4rem; }
+  .tier .card { flex: 1; }
+  .tier .pct { font-size: 1.9rem; font-weight: 700; margin-bottom: .3rem; }
+
+  .compass { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .compass .card { border-top: 4px solid var(--border); }
+  .compass .card.eu { border-top-color: var(--blue); }
+  .compass .card.east { border-top-color: var(--accent); }
+  .compass .card.west { border-top-color: var(--teal); }
+  .compass .tag { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; margin-bottom: .45rem; }
+  .compass .eu .tag { color: var(--blue); }
+  .compass .east .tag { color: var(--accent); }
+  .compass .west .tag { color: var(--teal); }
+  .compass .ask { margin-top: .7rem; font-size: .82rem; color: var(--text); font-style: italic; }
+
+  .metab { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; }
+  .metab .card { text-align: left; }
+  .metab .step { font-size: .72rem; color: var(--accent); font-weight: 700; letter-spacing: .12em; margin-bottom: .35rem; }
+
+  footer {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .9rem 2rem; font-size: .78rem; color: var(--text-dim);
+    background: linear-gradient(transparent, rgba(13,17,23,.9) 40%);
+    z-index: 10;
+  }
+  .navbtns { display: flex; gap: .5rem; }
+  .navbtns button {
+    background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: .45rem .95rem; font-size: .85rem; cursor: pointer;
+  }
+  .navbtns button:hover { border-color: var(--accent); color: var(--accent); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); width: 0; transition: width .3s ease; z-index: 20; }
+  .hint { opacity: .7; }
+
+  @media (max-width: 860px) {
+    .slide { padding: 3rem 6vw 5.5rem; overflow-y: auto; justify-content: flex-start; }
+    .grid.cols-2, .grid.cols-3, .compass, .metab { grid-template-columns: 1fr; }
+    .tier { flex-direction: column; }
+    .shift { grid-template-columns: 1fr; }
+    .shift .arrow { transform: rotate(90deg); justify-self: start; padding-left: 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1. Title -->
+  <section class="slide active">
+    <div class="kicker">AI &nbsp;·&nbsp; Operating Models &nbsp;·&nbsp; Comparative Advantage</div>
+    <h1>Metabolising AI</h1>
+    <h1 class="accent" style="margin-bottom:1.6rem;">Building comparative advantage in a large Australian bank</h1>
+    <p class="lede">A strategic conversation about where enterprise AI advantage will actually come from — and how an organisation absorbs new ways of thinking, not just new tools.</p>
+  </section>
+
+  <!-- 2. Core thesis -->
+  <section class="slide">
+    <div class="kicker">The core thesis</div>
+    <h2>Everyone will have the models.<br>Advantage belongs to whoever <span class="accent">metabolises</span> them fastest.</h2>
+    <p class="lede" style="margin-bottom:1.6rem;">Frontier AI is commoditising. Every large bank will buy broadly the same capability at the same time. The differentiator is the operating model: how quickly we absorb the technology, redesign work around it, manage the risk, uplift our people, and diffuse new behaviours across tens of thousands of employees.</p>
+    <div class="quote">How do we turn AI from a set of tools and pilots into an <b>organisational capability</b> — something that changes how risk, finance, customer service, talent, and work itself are designed?</div>
+  </section>
+
+  <!-- 3. Comparative advantage -->
+  <section class="slide">
+    <div class="kicker">1 · Comparative advantage</div>
+    <h2>Tool access is table stakes. Advantage sits in the connective tissue.</h2>
+    <div class="grid cols-3">
+      <div class="card"><h3>Proprietary data</h3><p>Valuable only if governed, connected and usable — not trapped in silos.</p></div>
+      <div class="card"><h3>Workflow integration</h3><p>AI embedded deep in lending, payments, risk and service flows is slow to copy.</p></div>
+      <div class="card"><h3>Risk &amp; governance maturity</h3><p>A regulated licence to move fast is rare and hard-won.</p></div>
+      <div class="card"><h3>Customer trust</h3><p>Trust determines what customers will let the bank do with AI.</p></div>
+      <div class="card"><h3>Speed of adoption</h3><p>Diffusion speed compounds — a 12-month lead becomes a capability gap.</p></div>
+      <div class="card hi"><h3>Redesigning work</h3><p>Automating tasks yields 10–20%. Redesigning work yields step changes. This is the biggest lever.</p></div>
+    </div>
+    <div class="qlabel">Discussion</div>
+    <p class="question">Where will enterprise AI advantage actually come from — data, workflows, risk maturity, trust, talent, speed of adoption, or something else?</p>
+  </section>
+
+  <!-- 4. Governance -->
+  <section class="slide">
+    <div class="kicker">2 · Risk &amp; governance</div>
+    <h2>Governance as the <span class="accent">accelerator</span>, not the brake</h2>
+    <div class="grid cols-3">
+      <div class="card"><h3>Policy-as-code</h3><p>Obligations and risk appetite expressed as machine-readable rules, checked in real time.</p></div>
+      <div class="card"><h3>Embedded controls</h3><p>Controls executed inside the workflow, not inspected after it.</p></div>
+      <div class="card"><h3>Auditability by design</h3><p>Every AI-assisted decision carries its own automatically generated evidence trail.</p></div>
+      <div class="card"><h3>Real-time assurance</h3><p>AI tests controls at 100% coverage; humans stop sampling 5%.</p></div>
+      <div class="card"><h3>Judgement-focused oversight</h3><p>People handle exceptions, appeals and judgement — not routine checking.</p></div>
+      <div class="card hi"><h3>The paved road</h3><p>Pre-approved patterns and risk tiers so 80% of use cases need configuration, not committee.</p></div>
+    </div>
+    <div class="qlabel">Discussion</div>
+    <p class="question">What does good look like for AI-enabled risk processes? Could strong governance let us say yes faster — and more safely — than our competitors?</p>
+  </section>
+
+  <!-- 5. Customer service -->
+  <section class="slide">
+    <div class="kicker">3 · Customer experience</div>
+    <h2>Beyond the chatbot: AI inside end-to-end journeys</h2>
+    <div class="shift">
+      <div class="from">Reactive: customer discovers the problem and calls us</div><div class="arrow">→</div><div class="to">Proactive: we detect the failed payment or hardship signal first</div>
+      <div class="from">Chatbot deflecting simple queries</div><div class="arrow">→</div><div class="to">Agent assist: frontline staff with real-time context and drafted actions</div>
+      <div class="from">Campaign segments</div><div class="arrow">→</div><div class="to">Personalised next-best-action grounded in the customer's actual situation</div>
+      <div class="from">Complaints resolved in days</div><div class="arrow">→</div><div class="to">AI-drafted investigation, precedent and remediation in hours</div>
+      <div class="from">Handle friction faster</div><div class="arrow">→</div><div class="to">Closed-loop learning: engineer recurring friction out of the journey</div>
+    </div>
+    <div class="qlabel">Discussion</div>
+    <p class="question">How does customer service evolve from chatbot-style use cases into genuinely AI-enabled customer journeys — measured on resolution and trust, not deflection?</p>
+  </section>
+
+  <!-- 6. Greenfield finance -->
+  <section class="slide">
+    <div class="kicker">4 · Greenfield finance</div>
+    <h2>If we designed finance from scratch today…</h2>
+    <div class="grid cols-3">
+      <div class="card"><h3>Continuous close</h3><p>Books always substantially closed; month-end becomes a confirmation.</p></div>
+      <div class="card"><h3>Real-time forecasting</h3><p>Rolling, driver-based forecasts replacing quarterly cycles.</p></div>
+      <div class="card"><h3>AI-drafted commentary</h3><p>Variance analysis and management commentary generated; humans add judgement.</p></div>
+      <div class="card"><h3>Exception-based controls</h3><p>100% of transactions screened; humans see only anomalies.</p></div>
+      <div class="card"><h3>Live dashboards</h3><p>Interrogate current numbers instead of reading last month's pack.</p></div>
+      <div class="card hi"><h3>Decision-intelligence partner</h3><p>Finance's identity shifts from scorekeeper to helping the business see around corners.</p></div>
+    </div>
+    <div class="qlabel">Discussion</div>
+    <p class="question">If we rebuilt finance from scratch today, what would we keep, automate, or redesign entirely?</p>
+  </section>
+
+  <!-- 7. Platform shift -->
+  <section class="slide">
+    <div class="kicker">5 · The platform shift</div>
+    <h2>From static artefacts to a <span class="accent">live operating layer</span></h2>
+    <ul class="clean">
+      <li><b>Live pages, not decks</b> — <span>interactive artefacts connected to real data replace the 40-slide monthly pack.</span></li>
+      <li><b>Dashboards wired to workflows</b> — <span>"see the problem" and "fix the problem" become one motion.</span></li>
+      <li><b>Copilots embedded in daily work</b> — <span>drawing on organisational knowledge in context.</span></li>
+      <li><b>Decisions linked to their artefacts</b> — <span>approvals, commentary and evidence create automatic institutional memory.</span></li>
+      <li><b>The substrate for agents</b> — <span>AI agents can act on connected, current information — not on a folder of old PowerPoints.</span></li>
+    </ul>
+    <div class="qlabel">Discussion</div>
+    <p class="question">Are we moving away from PowerPoint and email toward a connected platform where knowledge, workflows, dashboards, copilots, approvals and commentary sit in one live operating layer?</p>
+  </section>
+
+  <!-- 8. Skill gap -->
+  <section class="slide">
+    <div class="kicker">6 · The widening skill gap</div>
+    <h2>AI will not lift everyone evenly</h2>
+    <div class="tier">
+      <div class="card" style="border-top:4px solid var(--teal);"><div class="pct" style="color:var(--teal);">Superpowered</div><p>Use AI deeply, redesign their own workflows, become dramatically more productive. Risk: critical workflows depend on a handful of people.</p></div>
+      <div class="card" style="border-top:4px solid var(--blue);"><div class="pct" style="color:var(--blue);">New normal</div><p>Adopt AI as routine; steady gains. Need a paved road of approved tools and playbooks, not hype.</p></div>
+      <div class="card" style="border-top:4px solid var(--rose);"><div class="pct" style="color:var(--rose);">Laggards</div><p>Struggle, quietly resist, or fall behind. Need protected time and peer support — not another e-learning module.</p></div>
+    </div>
+    <p class="lede" style="margin-top:1.3rem;">An organisation split into super-users and laggards has an operating-model problem wearing a training costume: concentration risk, fragmentation, broken performance measurement, and growing internal inequality of capability.</p>
+    <div class="qlabel">Discussion</div>
+    <p class="question">AI may create super-users, a new normal, and laggards. How do we stop that from becoming an operating-model problem?</p>
+  </section>
+
+  <!-- 9. New operating model -->
+  <section class="slide">
+    <div class="kicker">7 · The new operating model</div>
+    <h2>AI adoption is an operating-model change, not a technology rollout</h2>
+    <div class="shift">
+      <div class="from">Project-based delivery</div><div class="arrow">→</div><div class="to">Product &amp; platform-based delivery</div>
+      <div class="from">Fixed teams</div><div class="arrow">→</div><div class="to">Fluid talent allocation against priorities</div>
+      <div class="from">Manual controls</div><div class="arrow">→</div><div class="to">Embedded, automated controls</div>
+      <div class="from">Periodic reporting</div><div class="arrow">→</div><div class="to">Live decision intelligence</div>
+      <div class="from">Centralised experimentation</div><div class="arrow">→</div><div class="to">Federated adoption with central guardrails</div>
+      <div class="from">Individual productivity gains</div><div class="arrow">→</div><div class="to">Enterprise-wide redesign of work</div>
+    </div>
+    <div class="qlabel">Discussion</div>
+    <p class="question">What operating-model changes are needed for AI to move from isolated productivity gains to a genuinely different way of running the organisation?</p>
+  </section>
+
+  <!-- 10. Metabolising -->
+  <section class="slide">
+    <div class="kicker">8 · Metabolising new ways of thinking</div>
+    <h2>The hardest part isn't the technology — it's <span class="accent">digestion</span></h2>
+    <div class="metab">
+      <div class="card"><div class="step">01 · INGEST</div><h3>Adapt frontier ideas</h3><p>Make new ways of working safe and usable in a regulated enterprise — adapt, don't copy.</p></div>
+      <div class="card"><div class="step">02 · DIGEST</div><h3>Pilots → patterns</h3><p>Turn successes into repeatable, governed, reusable patterns — not one-off wins.</p></div>
+      <div class="card"><div class="step">03 · CIRCULATE</div><h3>Move it across units</h3><p>Rotations, communities of practice, pattern libraries, floating experts.</p></div>
+      <div class="card"><div class="step">04 · ABSORB</div><h3>Make it the default</h3><p>Built into onboarding, performance expectations and management routines.</p></div>
+    </div>
+    <p class="lede" style="margin-top:1.3rem;">The common failure mode: pockets of genuine innovation that never scale, because no mechanism exists to move them. The pilot succeeds; the organisation doesn't change.</p>
+    <div class="qlabel">Discussion</div>
+    <p class="question">How do we metabolise AI-native ways of thinking across the enterprise, rather than leaving them trapped in pilots, innovation teams, or isolated power users?</p>
+  </section>
+
+  <!-- 11. Global comparators -->
+  <section class="slide">
+    <div class="kicker">9 · Global comparators</div>
+    <h2>Stop benchmarking against other Australian banks</h2>
+    <div class="compass">
+      <div class="card eu"><div class="tag">Europe · Structural comparator</div><h3>"What must we get right?"</h3><p>Mature markets, strong regulation (EU AI Act), similar trust expectations. Banks that integrate frontier AI safely rather than build it.</p><p class="ask">Learn regulated, responsible, enterprise-scale adoption. Avoid compliance timidity.</p></div>
+      <div class="card east"><div class="tag">US East Coast · Aspirational banking</div><h3>"What does scale look like?"</h3><p>Large banks, asset managers, insurers industrialising AI: platforms, thousands of production use cases, CEO-level ownership.</p><p class="ask">Learn industrialisation and talent density. Don't assume their budget is the entry ticket.</p></div>
+      <div class="card west"><div class="tag">US West Coast · Frontier signal</div><h3>"What's coming?"</h3><p>Agentic workflows, AI-native platforms, coding agents, copilots as the default interface, radically faster iteration.</p><p class="ask">Learn the direction of travel. Don't copy the risk posture onto a regulated balance sheet.</p></div>
+    </div>
+    <div class="qlabel">Discussion</div>
+    <p class="question">Europe for regulation, East Coast for enterprise transformation, West Coast for frontier operating models — how do we learn from each without copying the wrong context?</p>
+  </section>
+
+  <!-- 12. Floating experts -->
+  <section class="slide">
+    <div class="kicker">10 · Talent</div>
+    <h2>The <span class="accent">floating expert layer</span>: retention and diffusion in one structure</h2>
+    <ul class="clean">
+      <li><b>A small elite bench</b> — <span>AI, engineering, data and product talent deployed against the highest-priority problems.</span></li>
+      <li><b>Venture-style bursts</b> — <span>short, deep problem-solving with real autonomy — the problem quality and velocity that keeps this talent.</span></li>
+      <li><b>Patterns, not one-offs</b> — <span>every engagement leaves behind reusable assets and capability, not just a deliverable.</span></li>
+      <li><b>Coaching as they deliver</b> — <span>capability transfers to resident teams rather than departing with the experts.</span></li>
+      <li><b>The circulatory system</b> — <span>floating experts are how AI-native practices physically move across the organisation.</span></li>
+    </ul>
+    <div class="qlabel">Discussion</div>
+    <p class="question">Top tech talent won't stay boxed into narrow BAU roles. Does our operating model need a floating expert layer that solves the hardest problems and spreads new ways of working?</p>
+  </section>
+
+  <!-- 13. Synthesis -->
+  <section class="slide">
+    <div class="kicker">11 · Synthesis</div>
+    <h2>The operating model <span class="accent">is</span> the moat</h2>
+    <ul class="clean">
+      <li><b>Models are commodities; metabolism is not.</b></li>
+      <li><b>Governance can be the accelerator</b> — <span>policy-as-code and real-time assurance let a regulated bank move faster, not slower.</span></li>
+      <li><b>Redesign journeys and functions, not tasks</b> — <span>customer service and finance are the proving grounds.</span></li>
+      <li><b>Work is re-platforming</b> — <span>the live operating layer is the substrate copilots and agents will run on.</span></li>
+      <li><b>People diverge unless the system converges them</b> — <span>the super-user / laggard split is an operating-model risk.</span></li>
+      <li><b>Talent and diffusion share a solution</b> — <span>the floating expert layer retains the best people and spreads new practice.</span></li>
+      <li><b>Benchmark globally, translate locally</b> — <span>Europe, US East Coast, US West Coast — each for a different question.</span></li>
+    </ul>
+  </section>
+
+  <!-- 14. Closing -->
+  <section class="slide">
+    <div class="kicker">The question to leave in the room</div>
+    <div class="quote" style="font-size:clamp(1.4rem,2.6vw,2rem);">How do we turn AI from a set of tools and pilots into an <span class="accent">organisational capability</span> — something that changes how risk, finance, customer service, talent, and work itself are designed?</div>
+    <p class="lede" style="margin-top:2rem;">Everyone will have the models. Advantage belongs to the organisation that metabolises them fastest.</p>
+  </section>
+
+</div>
+
+<footer>
+  <span id="counter">1 / 14</span>
+  <span class="hint">Use ← → arrow keys, space, or the buttons to navigate</span>
+  <div class="navbtns">
+    <button onclick="nav(-1)" aria-label="Previous slide">← Prev</button>
+    <button onclick="nav(1)" aria-label="Next slide">Next →</button>
+  </div>
+</footer>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let i = 0;
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    document.getElementById('counter').textContent = (i + 1) + ' / ' + slides.length;
+    document.getElementById('progress').style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  function nav(d) { show(i + d); }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); nav(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); nav(-1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', e => touchX = e.touches[0].clientX);
+  document.addEventListener('touchend', e => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 60) nav(dx < 0 ? 1 : -1);
+    touchX = null;
+  });
+  show(0);
+</script>
+</body>
+</html>
